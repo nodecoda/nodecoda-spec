@@ -1,0 +1,27 @@
+{
+  "name": "@nodecoda/spec",
+  "version": "0.1.0",
+  "description": "NodeCoda language specification, reference docs, and examples.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nodecoda/nodecoda-spec.git"
+  },
+  "files": [
+    "spec/",
+    "examples/",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "nodecoda",
+    "ncoda",
+    "language",
+    "specification",
+    "dify",
+    "workflow"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

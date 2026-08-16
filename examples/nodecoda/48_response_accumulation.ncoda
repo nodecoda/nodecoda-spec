@@ -1,0 +1,10 @@
+@language nodecoda/1
+// Runtime evidence fixture: multiple End responses continue along one path.
+
+@mode workflow
+
+function main(string value = "probe") -> string {
+    output("first", value);
+    output("second", value + ":second");
+    return value + ":final";
+}

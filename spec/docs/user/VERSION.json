@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "language_identity": "nodecoda/1",
+  "stdlib_api_version": "v1",
+  "target_profile": "dify-1.16-graphon-0.6",
+  "docs_snapshot": "sha256:5c5b608474a1feb4d11c9a06c09f8bef6e342665a4d2827d9b36b1441d887f5f",
+  "facts_count": 322,
+  "examples_count": 62,
+  "generated_at": "2026-08-13T02:28:39Z",
+  "doc_hashes": {
+    "BEST-PRACTICES.md": "6b4ee65f463a19bb",
+    "CONCEPTS.md": "6d82846664d6fa15",
+    "COOKBOOK.md": "0588f7558420e7c8",
+    "DIAGNOSTICS.md": "4055e7d9b22f4fa5",
+    "GETTING-STARTED.md": "aa62eeddfc47b0bc",
+    "LANGUAGE-REFERENCE.md": "5c40a335c49ba797",
+    "MIGRATION.md": "14434ea39c6cbf4f",
+    "README.md": "fb76a6dea47dcc71",
+    "STDLIB-REFERENCE.md": "ee907472f42af911",
+    "TARGET-COMPATIBILITY.md": "a98a93ea8040e81b",
+    "TROUBLESHOOTING.md": "6f869203ccf1f7c2",
+    "UNSUPPORTED-SEMANTICS.md": "f00cf1de27bdd063",
+    "WORKFLOW-PATTERNS.md": "c0b93ada4b4a871f"
+  }
+}
