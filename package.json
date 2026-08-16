@@ -9,7 +9,6 @@
   },
   "files": [
     "spec/",
-    "examples/",
     "README.md",
     "LICENSE"
   ],

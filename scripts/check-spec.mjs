@@ -10,8 +10,8 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const USER_DIR = join(ROOT, 'spec', 'docs', 'user')
-const EX_DSL = join(ROOT, 'examples', 'nodecoda')
-const EX_YAML = join(ROOT, 'examples', 'yaml')
+const EX_DSL = join(ROOT, 'spec', 'examples', 'nodecoda')
+const EX_YAML = join(ROOT, 'spec', 'examples', 'yaml')
 const VERSION_PATH = join(USER_DIR, 'VERSION.json')
 const DOCS = [
   'BEST-PRACTICES.md', 'CONCEPTS.md', 'COOKBOOK.md',
