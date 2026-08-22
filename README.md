@@ -3,6 +3,12 @@
 The public home of the **NodeCoda language** (`.ncoda`) — specification, reference
 docs, and examples.
 
+> **Authority**: `spec/grammar.ebnf` is the machine-readable grammar of record
+> (single source of truth). `spec/docs/user/LANGUAGE-REFERENCE.md` §11 is its
+> production-name index; `spec/examples/nodecoda/` is its example corpus.
+> Grammar changes must update the EBNF, the §11 index, the reference prose,
+> and examples in one change set (see `spec/grammar.ebnf` header).
+
 > NodeCoda is an independent product and is not affiliated with or endorsed by
 > Dify. Dify is referenced solely to describe a Supported workflow Build Target
 > and interoperability.
@@ -11,7 +17,8 @@ docs, and examples.
 
 ```
 spec/
-  SYNTAX.md               language syntax specification
+  grammar.ebnf            THE grammar of record (EBNF, single source of truth)
+  SYNTAX.md               enum-syntax addendum (supplements grammar.ebnf)
   docs/user/              user reference docs + VERSION.json (13 docs)
     VERSION.json          language_identity, stdlib version, content-addressed doc hashes
 examples/

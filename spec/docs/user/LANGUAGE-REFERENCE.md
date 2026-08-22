@@ -621,12 +621,15 @@ let city = extracted.value.city;
 
 本节列出当前语言身份下的文法、保留字和类型事实，便于精确查找公开语法能力。
 
+> 机器可读文法以 [`grammar.ebnf`](../../grammar.ebnf) 为准（单一事实源）；下表为其产生式名索引。
+
 <!-- DOCFORG:BEGIN section=language-facts -->
 | Fact ID | 名称 | 摘要 |
 |---------|------|------|
 | <!-- DOCFORG:FACT id=syntax.add.expression --> `syntax.add.expression` | `add_expr` | Grammar production add_expr |
 | <!-- DOCFORG:FACT id=syntax.agent.application --> `syntax.agent.application` | `agent_application` | @mode agent + @agent 块声明 |
 | <!-- DOCFORG:FACT id=syntax.agent.block --> `syntax.agent.block` | `agent_block` | @agent 配置块（model/instruction/strategy/max_iteration/memory/memory_window/tools/knowledge） |
+| <!-- DOCFORG:FACT id=syntax.answer.declaration --> `syntax.answer.declaration` | `answer_decl` | @answer 最终答案模板（workflow final-answer template） |
 | <!-- DOCFORG:FACT id=syntax.and.expression --> `syntax.and.expression` | `and_expr` | Grammar production and_expr |
 | <!-- DOCFORG:FACT id=syntax.answer.statement --> `syntax.answer.statement` | `answer_stmt` | Grammar production answer_stmt |
 | <!-- DOCFORG:FACT id=syntax.arg.list --> `syntax.arg.list` | `arg_list` | Grammar production arg_list |

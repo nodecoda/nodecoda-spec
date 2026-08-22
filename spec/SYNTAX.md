@@ -10,7 +10,7 @@ last_verified: 2026-07-27
 
 This addendum records the canonical public spelling of enum constructs only. It is not a complete NodeCoda
 syntax reference. Grammar acceptance for the whole language, including enums, is defined by
-`docs/user/LANGUAGE-REFERENCE.md` (§11 语言事实索引); observable meaning and target limits are
+`grammar.ebnf` (machine-readable grammar of record) and `docs/user/LANGUAGE-REFERENCE.md` (§11 语言事实索引); observable meaning and target limits are
 defined by `docs/user/LANGUAGE-REFERENCE.md` together with `docs/user/UNSUPPORTED-SEMANTICS.md`
 and `docs/user/TARGET-COMPATIBILITY.md`.
 

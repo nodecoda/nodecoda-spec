@@ -1,0 +1,322 @@
+(*
+ * grammar.ebnf — NodeCoda Language Grammar (single source of truth)
+ *
+ * Authority: nodecoda/nodecoda-spec is the canonical specification home for
+ * the NodeCoda language. THIS FILE is the machine-readable grammar of record;
+ * docs/user/LANGUAGE-REFERENCE.md §11 is its production-name index, and
+ * spec/examples/nodecoda/ is its example corpus.
+ *
+ * Provenance: translated 2026-08-23 from `dify-dsl.y` (Yacc-shaped reference
+ * grammar formerly at nodecoda-lang/lang/docs/dify-dsl.y and
+ * ncoda-py/docs/dify-dsl.y). Those files are RETIRED; do not edit or restore
+ * them. The executable parsers (godcc internal/parser, ncoda-lang parser.py)
+ * are implementations of THIS grammar, not independent authorities.
+ *
+ * Maintenance rules:
+ *   1. Grammar change → edit THIS file + §11 facts index + LANGUAGE-REFERENCE
+ *      prose + examples, in one change set.
+ *   2. Production names are stable identifiers; renaming requires updating
+ *      the §11 index (id = syntax.<name>) and any tooling that consumes facts.
+ *   3. Semantic restrictions that cannot be expressed in EBNF are listed in
+ *      "Static semantic restrictions" below and are part of the contract.
+ *
+ * Reconciliation ledger (vs retired dify-dsl.y):
+ *   removed  : dead reserved tokens entry / stream / |> (A1 cleanup, godcc)
+ *              parallel_expr (value form removed; see LANGUAGE-REFERENCE §5.4)
+ *              agent(...) operation-call form (superseded by @agent decl)
+ *              datasource(...) reserved operation (target-specific)
+ *   added    : import_decl (LANGUAGE-REFERENCE §1.3, godcc import)
+ *              agent_application / agent_block (§1.5, godcc @agent)
+ *              answer_decl (@answer final-answer template, godcc; spec prose
+ *                           coverage pending — see LANGUAGE-REFERENCE §1)
+ *              @language / @mode declarations (already in §11 facts)
+ *   quirks   : int(...) numeric cast is an implementation hack (godcc G13),
+ *              NOT part of the grammar; `.type` field access and map key
+ *              `timeout` are accepted by the parser as contextual words —
+ *              see notes under postfix_expr and map_key.
+ *)
+
+(* ── Terminals ──────────────────────────────────────────────────────────── *)
+(*
+ * Keywords (reserved; cannot be identifiers):
+ *   function if else for while in return var let const output type enum
+ *   parallel break continue code foreign source yield answer limit attempt
+ *   success failure with retry timeout default as request_input action import
+ *   true false null
+ *   string int float bool file void map array any
+ *   @language @mode @conversation @agent @answer
+ *
+ * Literals:
+ *   STRING_LITERAL      "..." or '...' with escapes
+ *   TEMPLATE_STRING     `...` with ${expression} interpolation
+ *   INT_LITERAL         decimal digits
+ *   FLOAT_LITERAL       digits "." digits
+ *   IDENTIFIER          [_a-zA-Z][_a-zA-Z0-9]*
+ *
+ * Symbols:
+ *   ( ) { } [ ] , : ; ? . -> | = == != < <= > >= && || ! + - * / %
+ *   += -= *= /= <<
+ *
+ * Comments: // line comments; /* *\/ nested block comments.
+ * Whitespace is insignificant; statements are terminated by ';' or a block.
+ *)
+
+(* ── Program structure ──────────────────────────────────────────────────── *)
+
+program = language_decl_opt mode_decl_opt conversation_decl_list top_level_list ;
+
+language_decl_opt = [ "@language" IDENTIFIER semicolon_opt ] ;
+mode_decl_opt     = [ "@mode" IDENTIFIER semicolon_opt ] ;
+
+conversation_decl_list = { conversation_decl } ;
+conversation_decl = "@conversation" type_ref IDENTIFIER [ "=" expression ] ";" ;
+
+top_level_list = { top_level_decl semicolon_opt } ;
+top_level_decl = const_decl | type_decl | enum_decl | import_decl
+               | code_function_def | function_def
+               | agent_application | answer_decl ;
+
+import_decl   = "import" STRING_LITERAL ";" ;
+const_decl    = "const" IDENTIFIER "=" const_value ";" ;
+const_value   = STRING_LITERAL | TEMPLATE_STRING | INT_LITERAL | FLOAT_LITERAL
+              | "true" | "false" | "null" ;
+type_decl     = "type" IDENTIFIER "=" "{" field_list "}" semicolon_opt ;
+field_list    = { type_ref IDENTIFIER ";" } ;
+enum_decl     = "enum" IDENTIFIER "{" enum_member_list trailing_comma_opt "}" semicolon_opt ;
+enum_member_list = IDENTIFIER { "," IDENTIFIER } ;
+
+function_def      = "function" IDENTIFIER param_list return_type_opt block ;
+code_function_def = "code" IDENTIFIER param_list "->" type_ref block ;
+
+agent_application = "@agent" agent_block ;
+agent_block = "{" [ agent_entry { "," agent_entry } [ "," ] ] "}" ;
+agent_entry = (IDENTIFIER | STRING_LITERAL) ":" expression ;
+
+answer_decl = "@answer" (STRING_LITERAL | TEMPLATE_STRING)
+              { word "=" IDENTIFIER { "." IDENTIFIER } } semicolon_opt ;
+word = IDENTIFIER | keyword ;  (* @answer binding names may be contextual keywords *)
+
+(* ── Types ──────────────────────────────────────────────────────────────── *)
+
+type_ref = type_atom { "[" "]" } [ "?" ] ;   (* array_suffix_seq + optional_suffix *)
+
+type_atom = primitive_type
+          | file_type_ref
+          | IDENTIFIER                       (* named record / enum type *)
+          | "array" "<" type_ref ">"
+          | "map" "<" "string" "," type_ref ">" ;
+
+primitive_type = "string" | "int" | "float" | "bool" | "void" | "any" ;
+
+file_type_ref = "file" [ "<"
+                         file_type_list
+                         [ ";" file_extension_list ]
+                         [ ";" file_upload_list ]
+                       ">" ] ;
+file_type_list    = IDENTIFIER { "," IDENTIFIER } ;
+file_extension_list = "." IDENTIFIER { "," "." IDENTIFIER } ;
+file_upload_list  = IDENTIFIER { "," IDENTIFIER } ;
+
+(* ── Statements ─────────────────────────────────────────────────────────── *)
+
+block    = "{" stmt_list "}" ;
+stmt_list = { statement } ;
+
+statement = if_stmt | for_stmt | while_stmt | return_stmt | yield_stmt
+          | answer_stmt | parallel_stmt | attempt_stmt | request_input_stmt
+          | break_stmt | continue_stmt | typed_var_decl | var_decl
+          | output_stmt | expr_or_assign_stmt ;
+
+if_stmt        = "if" "(" expression ")" block else_clause_opt ;
+else_clause_opt = [ "else" ( block | if_stmt ) ] ;
+
+for_stmt = "for" "(" for_var "in" expression ")" block ;
+for_var  = IDENTIFIER | "var" IDENTIFIER | "let" IDENTIFIER | type_ref IDENTIFIER ;
+
+while_stmt = "while" "(" expression ")" "limit" INT_LITERAL block ;
+
+return_stmt = "return" [ expression ] ";" ;
+yield_stmt  = "yield" [ expression ] ";" ;
+answer_stmt = "answer" "(" [ expression ] ")" ";" ;
+
+parallel_stmt = "parallel" "{" { [ IDENTIFIER ":" ] block } "}" ;
+
+attempt_stmt = "attempt" expression "as" IDENTIFIER
+               "{" "success" block "failure" "(" IDENTIFIER ")" block "}" ;
+
+request_input_stmt = "request_input" "<" type_ref "," type_ref ">"
+                     "(" map_literal ")" "as" IDENTIFIER
+                     "{" { "action" expression block } "timeout" block "}" ;
+
+break_stmt    = "break" ";" ;
+continue_stmt = "continue" ";" ;
+
+typed_var_decl = type_ref IDENTIFIER [ "=" expression ] ";" ;
+var_decl       = ( "var" | "let" ) IDENTIFIER [ "=" expression ] ";" ;
+
+output_stmt = "output" "(" expression "," expression ")" ";" ;
+
+expr_or_assign_stmt = expression [ ( "=" | "+=" | "-=" | "*=" | "/=" | "<<" ) expression ] ";" ;
+
+(* ── Expressions ────────────────────────────────────────────────────────── *)
+
+expression = ternary_expr ;
+ternary_expr = or_expr [ "?" expression ":" expression ] ;
+or_expr  = and_expr { "||" and_expr } ;
+and_expr = equality_expr { "&&" equality_expr } ;
+equality_expr = comparison_expr { ( "==" | "!=" ) comparison_expr } ;
+comparison_expr = add_expr { ( "<" | "<=" | ">" | ">=" | "in" ) add_expr } ;
+add_expr = multiply_expr { ( "+" | "-" ) multiply_expr } ;
+multiply_expr = unary_expr { ( "*" | "/" | "%" ) unary_expr } ;
+unary_expr = ( "!" | "-" ) unary_expr | postfix_expr ;
+
+postfix_expr = primary_expr
+               { "." ( IDENTIFIER | "type" )
+               | "[" expression "]"
+               | "<" type_ref { "," type_ref } ">" "(" arg_list ")"
+               | "(" arg_list ")" }
+               [ "with" operation_policies ] ;
+
+operation_policies = operation_policy { "," operation_policy } ;
+operation_policy = "retry" "(" "max" ":" INT_LITERAL
+                          [ "," "interval" ":" duration ] ")"
+                 | "timeout" "(" duration ")"
+                 | "default" "(" expression ")" ;
+duration = INT_LITERAL IDENTIFIER ;      (* unit restricted to ms | s *)
+
+arg_list = [ arg_seq ] ;
+arg_seq  = expression { "," expression } ;
+
+primary_expr = INT_LITERAL | FLOAT_LITERAL | STRING_LITERAL | TEMPLATE_STRING
+             | "true" | "false" | "null"
+             | IDENTIFIER
+             | "(" expression ")"
+             | array_literal | map_literal
+             | for_expr | parallel_for_expr
+             | foreign_code_expr | lambda_expr ;
+
+array_literal = "[" [ arg_seq ] "]" ;
+map_literal   = "{" [ map_entry { "," map_entry } [ "," ] ] "}" ;
+map_entry     = map_key ":" expression ;
+map_key       = expression | "timeout" ;   (* 'timeout' is a contextual word here *)
+
+for_expr = "for" "(" for_var "in" expression ")" yield_block ;
+parallel_for_expr = "parallel" "for" "(" for_var "in" expression
+                    "," "concurrency" ":" INT_LITERAL
+                    "," "on_error" ":" IDENTIFIER ")" yield_block ;
+yield_block = "{" stmt_list yield_stmt stmt_list "}" ;  (* grammar guarantees >= 1 yield *)
+
+lambda_expr = "(" [ IDENTIFIER { "," IDENTIFIER } ] ")" "->" expression ;
+
+foreign_code_expr = "foreign" "code" code_language
+                    "(" code_inputs_opt ")" "->" code_output_contract
+                    "{" code_source "}" ;
+code_language = IDENTIFIER | STRING_LITERAL ;   (* normalized to python3 *)
+
+code_inputs_opt = [ code_input_seq trailing_comma_opt ] ;
+code_input_seq  = code_input { "," code_input } ;
+code_input      = code_type_ref IDENTIFIER "=" expression ;
+
+code_output_contract = code_direct_output | code_structural_output ;
+code_direct_output   = code_type_ref ;
+code_structural_output = "{" code_output_field code_output_field code_output_field_tail "}" ;
+code_output_field_tail = { code_output_field } ;
+code_output_field = IDENTIFIER ":" code_type_ref ";" ;
+
+code_source = "source" TEMPLATE_STRING ";" ;
+code_type_ref = type_ref ;
+
+trailing_comma_opt = [ "," ] ;
+semicolon_opt      = [ ";" ] ;
+
+(* ── Static semantic restrictions (part of the contract) ────────────────── *)
+
+(*
+ * - @mode is restricted to workflow, advanced-chat, or agent.
+ * - @conversation declarations require advanced-chat mode; defaults must be
+ *   target-representable typed literals.
+ * - agent_application requires @mode agent; allowed keys are model (required),
+ *   instruction, strategy, max_iteration, memory, memory_window, tools,
+ *   knowledge { dataset_ids: [string], top_k: int }; unknown keys and type
+ *   mismatches are compile errors.
+ * - Programs have exactly one workflow entry named main.
+ * - User workflow/code function call graphs are acyclic.
+ * - while limit and parallel-for concurrency are positive static integers;
+ *   parallel-for option names are concurrency and on_error; the on_error value
+ *   is terminate, keep_null, or remove_failed.
+ * - Named parallel branches have unique names; branch labels are source-level
+ *   only (semantically ignored); parallel is a transparent barrier and never
+ *   yields a collection value (no `let x = parallel {...}`).
+ * - for_expr / parallel_for_expr bodies contain exactly one compatible yield
+ *   on every reachable path; return/break/continue are rejected inside them.
+ * - let bindings are immutable. var assignment is legal only for statically
+ *   proven target-owned state (Loop state, advanced-chat conversation state);
+ *   ordinary workflow mutation is rejected.
+ * - =, +=, -=, *=, /= and << have one language meaning each; whether a
+ *   particular operand/store shape can be lowered is a target-capability
+ *   question and never introduces assigner/node-version syntax.
+ * - output(key, value) is workflow-only with a statically analyzable response
+ *   key; answer(value) is advanced-chat-only; return is a function exit,
+ *   output/answer publish responses and may continue.
+ * - attempt and postfix operation policies apply only to manifest-declared
+ *   workflow operations that expose the required physical Dify fields/handles.
+ * - Call type arguments are accepted only by schema-dependent operations
+ *   (current: extract<T>, exactly one named non-empty record).
+ * - Extraction reports soft failure through .ok / .reason; attempt handles
+ *   physical operation failure. Callers must inspect .ok before .value.
+ * - foreign code language normalizes to python3 only; Code input/output types
+ *   reject file, void, any, null, function, maps with non-string keys, and
+ *   unrepresentable nested shapes; structural outputs declare >= 2 unique
+ *   fields; a direct output creates one physical port named result; a Code
+ *   body contains exactly one source member.
+ * - Only explicit parallel and parallel-for introduce operation concurrency.
+ * - Legal syntax is still subject to target capability classification; a
+ *   REJECTED shape returns a diagnostic before WorkflowAST/YAML emission.
+ *)
+
+(* ── Canonical surface example (from LANGUAGE-REFERENCE §1, §4, §5) ─────── *)
+
+(*
+ *   @mode workflow
+ *   code decorate(string value) -> string {
+ *       return "[" + value + "]";
+ *   }
+ *
+ *   function main(string input) -> string {
+ *       let value = foreign code python3(string input = input) -> string {
+ *           source `def main(input: str) -> dict:
+ *       return {"result": input}`;
+ *       };
+ *       let items = for (item in [value]) { yield decorate(item); };
+ *       output("items", items);
+ *       return items[0];
+ *   }
+ *
+ *   type TravelRequest = {
+ *       string city;
+ *       float days;
+ *       bool flexible;
+ *       string[] tags;
+ *   }
+ *
+ *   function extract_city(string text) -> string {
+ *       let extracted = extract<TravelRequest>("provider/model", text, {
+ *           instruction: "Extract a travel request",
+ *           descriptions: { city: "Destination city", days: "Duration" },
+ *           strategy: "prompt"
+ *       });
+ *       if (!extracted.ok) { return extracted.reason; }
+ *       return extracted.value.city;
+ *   }
+ *
+ *   @mode agent
+ *   @agent {
+ *       model: "provider/model",
+ *       instruction: "system persona",
+ *       max_iteration: 10,
+ *       tools: ["weather"],
+ *   }
+ *   function main(string query) -> string {
+ *       return run(query);
+ *   }
+ *)
