@@ -15,7 +15,7 @@ spec/
   docs/user/              user reference docs + VERSION.json (13 docs)
     VERSION.json          language_identity, stdlib version, content-addressed doc hashes
 examples/
-  nodecoda/               62 `.ncoda` sources (the high-level DSL)
+  nodecoda/               65 `.ncoda` sources (the high-level DSL)
   yaml/                   47 Dify workflow YAML examples (interop fixtures)
 ```
 

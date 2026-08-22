@@ -2,7 +2,7 @@
 
 编号 `00` 至 `38` 的 `.ncoda` Source 对应现有 Dify YAML，展示 Source 到目标产物的映射规则。
 `39` 至 `44` 是语言和 lowering 契约样例，`45` 起是部署能力与 reviewed contract 示例。完整语法见
-[`docs/dify-dsl.y`](../../docs/dify-dsl.y)。
+[`docs/user/LANGUAGE-REFERENCE.md`](../../docs/user/LANGUAGE-REFERENCE.md)。
 
 ## 编译状态
 

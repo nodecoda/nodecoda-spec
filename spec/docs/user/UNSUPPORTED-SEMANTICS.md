@@ -106,6 +106,7 @@
 | operation.stdlib | Language | EXPOSED | uncertified | versioned standard-library operation |
 | operation.tool | Language | EXPOSED | uncertified | tool operation |
 | program.mode.advanced-chat | Language | EXPOSED | uncertified | advanced-chat response mode |
+| program.mode.agent | Language | EXPOSED | uncertified | @mode agent 智能体应用（start → agent → end） |
 | program.mode.workflow | Language | EXPOSED | uncertified | workflow response mode |
 | response.advanced-chat | Language | EXPOSED | uncertified | advanced-chat Answer response |
 | response.workflow | Language | EXPOSED | uncertified | workflow End response |

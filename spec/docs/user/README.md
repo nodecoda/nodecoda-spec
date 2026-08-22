@@ -51,5 +51,5 @@ function main(string query) -> string {
 
 ## 相关资源
 
-- [权威文法](../dify-dsl.y) — Yacc 格式的语法规范
+- [权威文法](LANGUAGE-REFERENCE.md#11-语言事实索引) — 文法生产式与保留字事实索引
 - [AI 文档入口](../ai/llms.txt) — 面向本地检索与 AI 工具的文档索引

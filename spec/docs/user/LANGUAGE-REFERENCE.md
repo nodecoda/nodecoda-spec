@@ -27,10 +27,13 @@
 @mode workflow
 // 或
 @mode advanced-chat
+// 或
+@mode agent
 ```
 
 - `workflow`：标准工作流模式
 - `advanced-chat`：高级对话模式，支持 `@conversation` 声明和 `answer` 语句
+- `agent`：智能体应用模式，配合 `@agent` 块声明（见 1.5），编译为最小图 `start → agent → end`
 
 ### 1.2 对话声明（仅 advanced-chat）
 
@@ -61,6 +64,7 @@
 | `enum` | `enum Name { members }` | 枚举类型 |
 | `function` | `function name(params) -> type { ... }` | 工作流函数 |
 | `code` | `code name(params) -> type { ... }` | 纯计算函数 |
+| `import` | `import "provider";` | 平台提供商绑定（编译期封闭世界校验） |
 
 ### 1.4 入口函数
 
@@ -72,6 +76,40 @@ function main(string query) -> string {
     return query;
 }
 ```
+
+### 1.5 agent 应用声明（仅 agent 模式）
+
+```ncoda
+@mode agent
+
+@agent {
+    model: "provider/model",
+    instruction: "system persona",
+    max_iteration: 10,
+    tools: ["weather"],
+}
+
+function main(string query) -> string {
+    return run(query);
+}
+```
+
+- 仅 `@mode agent` 下允许；`main` 内以 `run(...)` 作为 agent 入口调用，返回值即 agent 最终答案；
+- 编译为固定最小图 `start → agent → end`；
+- 字段（未知键拒绝，类型不符即编译错误）：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `model` | `string` | 模型（provider/model），必填 |
+| `instruction` | `string` | 系统人格提示词 |
+| `strategy` | `string` | agent 策略 |
+| `max_iteration` | `int` | 最大迭代轮数 |
+| `memory` | `bool` | 是否启用记忆 |
+| `memory_window` | `int` | 记忆窗口（>= 0） |
+| `tools` | `[string]` | 工具逻辑名（alias）数组，条目必须为字符串字面量 |
+| `knowledge` | `{ dataset_ids: [string], top_k: int }` | 知识库检索配置 |
+
+- 与 `@mode workflow` / `advanced-chat` 互斥。
 
 ---
 
@@ -163,7 +201,7 @@ x += 5;      // 加等
 x -= 3;      // 减等
 x *= 2;      // 乘等
 x /= 4;      // 除等
-x << 1;      // 左移（用于构建输出流）
+x << item;   // 追加（构建输出流：会话变量数组追加，非位左移）
 ```
 
 ---
@@ -291,6 +329,8 @@ while (condition) limit 100 {
 
 ### 5.4 parallel 并行
 
+`parallel` 是**纯控制流栅栏语句**（barrier）：所有分支执行完毕才继续，**从不产生集合值**。
+
 ```ncoda
 // 并行执行多个块
 parallel {
@@ -301,18 +341,20 @@ parallel {
         let r2 = do_other_thing();
     }
 }
+```
 
-// 命名并行表达式，结果按分支名访问
-let values = parallel {
-    branch_a: {
-        yield process_a();
-    }
-    branch_b: {
-        yield process_b();
-    }
-};
+语义约束（v4 契约）：
 
-// parallel for 是值表达式，配置项和 yield 均为必需
+- 并行分支无序、无位置语义——要数组请显式写 `[a.x, b.x]`，由作者定序；
+- 分支是**透明屏障（非 block）**：分支内声明的变量全部透明透出到外层，下游直接按变量名访问；兄弟分支之间互不可见（并发数据竞争 = 编译错误）；
+- **同名跨分支导出 = 编译错误**：每个分支有自己的 producer，裸名引用无法解析到唯一值——即使同类型也冲突，必须改分支局部变量名；
+- 分支内 `return` = **流程结束**（terminate whole flow，直连 end），不是分支退出；栅栏不等待 return 分支；
+- 分支命名标签（`r1:` / `u:`）可选，保留但仅源码级，语义忽略；重复分支名 = 语法错误；
+- **表达式形态 `let x = parallel { ... }` 不存在**（已删除，不得使用）；`yield` 不得出现在 parallel 块内。
+
+`parallel for` 是值表达式，配置项和 `yield` 均为必需：
+
+```ncoda
 let results = parallel for (
     item in items,
     concurrency: 5,
@@ -322,7 +364,7 @@ let results = parallel for (
 };
 ```
 
-`on_error` 选项：`terminate`、`keep_null`、`remove_failed`。当前语法要求显式给出 `concurrency` 和 `on_error`。
+`on_error` 选项：`terminate`、`keep_null`、`remove_failed`。当前语法要求显式给出 `concurrency` 和 `on_error`；`yield` 仅保留于 `for` / `parallel for`（循环产出）。
 
 ### 5.5 attempt / failure（错误恢复）
 
@@ -415,6 +457,17 @@ function greet(string name, string greeting = "Hello") -> string {
 let result = analyze(input_text);
 let formatted = format_label("Alice", 95);
 ```
+
+列表操作（`filter` / `flatMap` 等）接受**单参数 lambda 回调**作为内联谓词/映射函数：
+
+```ncoda
+let hot = filter(items, (item) -> item.score > 80);
+let tags = flatMap(items, (item) -> item.tags);
+```
+
+- lambda 仅作为列表操作的内联回调（降级为 code 节点），**不作为一等值**穿过工作流边界；
+- `filter` 回调必须返回 `bool`；`flatMap` 回调必须返回数组；
+- 除回调位置外，lambda 不得出现在表达式、赋值或函数参数中。
 
 ---
 
@@ -553,10 +606,13 @@ let city = extracted.value.city;
 | 单一入口 | 程序有且仅有一个名为 `main` 的工作流函数 |
 | 无递归 | 用户函数调用图必须是无环的 |
 | while 上限 | `while limit` 和 `parallel concurrency` 必须是正整数字面量 |
-| 命名分支唯一性 | `parallel` 命名分支必须唯一，且每个可达路径恰好有一个兼容的 `yield` |
+| 分支标签唯一性 | `parallel` 命名分支标签必须唯一（仅源码级，语义忽略）；重复分支名 = 编译错误 |
+| yield 合约 | `for` / `parallel for` 值表达式的每个可达路径恰好有一个 `yield`；`parallel` 块内禁止 `yield` |
 | let 不可变 | `let` 绑定后不可重新赋值 |
 | output 上下文 | `output(key, value)` 仅限 workflow 模式 |
-| answer 上下文 | `answer(value)` 仅限 advanced-chat 模式 |
+| answer 上下文 | `answer(value)` 仅限 advanced-chat 模式；`@mode agent` 下 main 仅允许 agent 入口语义（`run(...)`） |
+| import 平台限定 | `import` 必须带平台限定符（如 `"coze-biz.web_search"`）；裸 import 或未知平台 = E1052 |
+| chatflow 入口 | `@mode advanced-chat` 入口首参必须命名为 `query`（E1054） |
 | 能力约束 | 合法语法仍受目标能力分类约束（REJECTED 形式返回诊断） |
 
 ---
@@ -569,6 +625,8 @@ let city = extracted.value.city;
 | Fact ID | 名称 | 摘要 |
 |---------|------|------|
 | <!-- DOCFORG:FACT id=syntax.add.expression --> `syntax.add.expression` | `add_expr` | Grammar production add_expr |
+| <!-- DOCFORG:FACT id=syntax.agent.application --> `syntax.agent.application` | `agent_application` | @mode agent + @agent 块声明 |
+| <!-- DOCFORG:FACT id=syntax.agent.block --> `syntax.agent.block` | `agent_block` | @agent 配置块（model/instruction/strategy/max_iteration/memory/memory_window/tools/knowledge） |
 | <!-- DOCFORG:FACT id=syntax.and.expression --> `syntax.and.expression` | `and_expr` | Grammar production and_expr |
 | <!-- DOCFORG:FACT id=syntax.answer.statement --> `syntax.answer.statement` | `answer_stmt` | Grammar production answer_stmt |
 | <!-- DOCFORG:FACT id=syntax.arg.list --> `syntax.arg.list` | `arg_list` | Grammar production arg_list |
@@ -620,6 +678,7 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.human.action.list --> `syntax.human.action.list` | `human_action_list` | Grammar production human_action_list |
 | <!-- DOCFORG:FACT id=syntax.human.timeout.branch --> `syntax.human.timeout.branch` | `human_timeout_branch` | Grammar production human_timeout_branch |
 | <!-- DOCFORG:FACT id=syntax.if.statement --> `syntax.if.statement` | `if_stmt` | Grammar production if_stmt |
+| <!-- DOCFORG:FACT id=syntax.import.declaration --> `syntax.import.declaration` | `import_decl` | 顶层 import "provider"; 平台提供商绑定 |
 | <!-- DOCFORG:FACT id=syntax.keyword.action --> `syntax.keyword.action` | `action` | Reserved keyword action |
 | <!-- DOCFORG:FACT id=syntax.keyword.answer --> `syntax.keyword.answer` | `answer` | Reserved keyword answer |
 | <!-- DOCFORG:FACT id=syntax.keyword.any --> `syntax.keyword.any` | `any` | Reserved keyword any |
@@ -644,6 +703,7 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.keyword.function --> `syntax.keyword.function` | `function` | Reserved keyword function |
 | <!-- DOCFORG:FACT id=syntax.keyword.if --> `syntax.keyword.if` | `if` | Reserved keyword if |
 | <!-- DOCFORG:FACT id=syntax.keyword.in --> `syntax.keyword.in` | `in` | Reserved keyword in |
+| <!-- DOCFORG:FACT id=syntax.keyword.import --> `syntax.keyword.import` | `import` | Reserved keyword import |
 | <!-- DOCFORG:FACT id=syntax.keyword.int --> `syntax.keyword.int` | `int` | Reserved keyword int |
 | <!-- DOCFORG:FACT id=syntax.keyword.let --> `syntax.keyword.let` | `let` | Reserved keyword let |
 | <!-- DOCFORG:FACT id=syntax.keyword.limit --> `syntax.keyword.limit` | `limit` | Reserved keyword limit |
@@ -682,7 +742,7 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.or.expression --> `syntax.or.expression` | `or_expr` | Grammar production or_expr |
 | <!-- DOCFORG:FACT id=syntax.output.statement --> `syntax.output.statement` | `output_stmt` | Grammar production output_stmt |
 | <!-- DOCFORG:FACT id=syntax.parallel.branches --> `syntax.parallel.branches` | `parallel_branches` | Grammar production parallel_branches |
-| <!-- DOCFORG:FACT id=syntax.parallel.expression --> `syntax.parallel.expression` | `parallel_expr` | Grammar production parallel_expr |
+| <!-- DOCFORG:FACT id=syntax.parallel.expression --> `syntax.parallel.expression` | `parallel_expr` | 值表达式形态仅限 parallel for；`let x = parallel {...}` 已删除 |
 | <!-- DOCFORG:FACT id=syntax.parallel.for.expression --> `syntax.parallel.for.expression` | `parallel_for_expr` | Grammar production parallel_for_expr |
 | <!-- DOCFORG:FACT id=syntax.parallel.statement --> `syntax.parallel.statement` | `parallel_stmt` | Grammar production parallel_stmt |
 | <!-- DOCFORG:FACT id=syntax.param --> `syntax.param` | `param` | Grammar production param |

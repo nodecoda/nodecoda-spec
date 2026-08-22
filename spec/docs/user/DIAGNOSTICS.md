@@ -74,7 +74,16 @@ Workflow Build 使用结构化诊断码报告错误和警告。诊断码是稳�
 | <a id="e1048"></a> <!-- DOCFORG:FACT id=diagnostic.E1048 --> `E1048` | UNINITIALIZED_USE | - |
 | <a id="e1049"></a> <!-- DOCFORG:FACT id=diagnostic.E1049 --> `E1049` | EMPTY_AGGREGATE_TYPE | - |
 | <a id="e1050"></a> <!-- DOCFORG:FACT id=diagnostic.E1050 --> `E1050` | LANGUAGE_IDENTITY | - |
+| <a id="e1051"></a> <!-- DOCFORG:FACT id=diagnostic.E1051 --> `E1051` | SHADOWED_NAMESPACE | - |
+| <a id="e1052"></a> <!-- DOCFORG:FACT id=diagnostic.E1052 --> `E1052` | IMPORT_PLATFORM_REQUIRED | - |
+| <a id="e1054"></a> <!-- DOCFORG:FACT id=diagnostic.E1054 --> `E1054` | CHATFLOW_ENTRY | - |
 | <a id="e1099"></a> <!-- DOCFORG:FACT id=diagnostic.E1099 --> `E1099` | LOWERING_INVARIANT | - |
+
+新增码语义：
+
+- `E1051`：变量声明与已导入的平台命名空间重名（全局作用域遮蔽，限定调用将产生歧义）；
+- `E1052`：`import` 必须带平台限定符（如 `import "coze-biz.web_search";`），裸 import 或未知平台被拒绝；
+- `E1054`：`@mode advanced-chat` 入口首参必须命名为 `query`（会话输入）。
 
 ### 警告码
 

@@ -82,6 +82,7 @@ NodeCoda Source 可以语言有效, 但仍可能无法为当前 Dify Build Targe
 | <!-- DOCFORG:FACT id=capability.nodecoda-sem-operation-tool --> operation.tool | EXPOSED | - | uncertified | - | - | - |
 | <!-- DOCFORG:FACT id=capability.nodecoda-sem-parallel-isolated --> parallel.isolated | EXPOSED | ENABLED | certified | DIFY-RUNTIME-PARALLEL-ISOLATED-2026-07-17 | >=1.16.0rc1,<1.17 | - |
 | <!-- DOCFORG:FACT id=capability.nodecoda-sem-program-mode-advanced-chat --> program.mode.advanced-chat | EXPOSED | - | uncertified | - | - | - |
+| <!-- DOCFORG:FACT id=capability.nodecoda-sem-program-mode-agent --> program.mode.agent | EXPOSED | - | uncertified | - | - | - |
 | <!-- DOCFORG:FACT id=capability.nodecoda-sem-program-mode-workflow --> program.mode.workflow | EXPOSED | - | uncertified | - | - | - |
 | <!-- DOCFORG:FACT id=capability.nodecoda-sem-response-accumulation --> response.accumulation | EXPOSED | - | certified | DIFY-RUNTIME-RESPONSE-ACCUMULATION-2026-07-17 | - | - |
 | <!-- DOCFORG:FACT id=capability.nodecoda-sem-response-advanced-chat --> response.advanced-chat | EXPOSED | - | uncertified | - | - | - |
