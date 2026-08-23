@@ -94,13 +94,13 @@ LLM 摘要、RAG 查询等操作的输入。支持纯文本与常见代码扩展
 function main(string query) -> string {
     turn_count += 1;
     if (turn_count >= 5) {
-        answer("本轮会话已达到 5 轮上限。");
+        output("本轮会话已达到 5 轮上限。");
         return "会话结束";
     }
     let response = llm("openai/gpt-4o", {
         "messages": [{ "role": "user", "content": query }]
     });
-    answer(response.text);
+    output(response.text);
     return response.text;
 }
 ```

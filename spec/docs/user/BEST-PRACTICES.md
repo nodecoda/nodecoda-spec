@@ -289,15 +289,19 @@ return std.v1.rag_answer(query, "ds-001", "openai/gpt-4o");
 ### 输出声明
 
 ```ncoda
-// workflow 模式
-output("result", computed_value);
+// 中间消息（非终止，任意位置可多次）
+output("正在生成报告…");
+output(progress_text);
+
+// 最终结构化结果
 return final_value;
 
-// advanced-chat 模式
-answer(response_text);
+// 最终答复文本（terminal，至多一个）
+@answer "{{final}} 已生成" final=final_value;
 ```
 
-`output` 和 `answer` 不能混用，分别对应不同的 Dify 工作流类型。
+`output` 发布中间消息（非终止）；`return` 返回结构化结果；`@answer` 声明最终答复文本。
+`answer(...)` 语句已移除（2026-08-23），其中间投递语义并入 `output`。
 
 ---
 

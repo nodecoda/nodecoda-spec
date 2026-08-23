@@ -38,7 +38,7 @@ return summary.text;
 ## 多轮对话
 
 `advanced-chat` 模式支持多轮对话：同一工作流在每一轮用户输入时执行一次，`@conversation`
-声明的会话变量在轮次之间持久保留，`answer` 语句把结果返回当前轮次。
+声明的会话变量在轮次之间持久保留，`output` 语句向当前轮次发布中间消息，`@answer` 提供最终答复。
 
 ```ncoda verified
 @language nodecoda/1
@@ -54,10 +54,10 @@ function main(string query) -> string {
         ]
     });
     if (turn_count >= 10) {
-        answer("已达到本轮会话的轮次上限。");
+        output("已达到本轮会话的轮次上限。");
         return "会话结束";
     }
-    answer(response.text);
+    output(response.text);
     return response.text;
 }
 ```
@@ -66,7 +66,7 @@ function main(string query) -> string {
 
 - 会话变量（`turn_count`）跨轮次累积，用于区分轮次与记录会话进度；
 - `max_turns` 这类会话变量表达轮次上限，由工作流自行判断终止；
-- 每轮只能通过 `answer` 返回一个结果；`return` 值用于工作流内部继续处理；
+- `output` 可在每轮发布多条中间消息（按序）；`@answer` 至多一个最终答复；`return` 返回结构化结果；
 - 文件类输入同样按轮次提供，可在每轮使用 `extract_text` 处理当轮上传的文件。
 
 ## 选择模式的顺序

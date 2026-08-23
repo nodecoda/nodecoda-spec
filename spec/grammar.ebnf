@@ -25,10 +25,15 @@
  *              parallel_expr (value form removed; see LANGUAGE-REFERENCE §5.4)
  *              agent(...) operation-call form (superseded by @agent decl)
  *              datasource(...) reserved operation (target-specific)
+ *              answer_stmt + reserved token answer (2026-08-23; its
+ *                  intermediate-publish semantics folded into output(expr);
+ *                  @answer decl retained — semantics:
+ *                  docs/NCODA-OUTPUT-MODEL.md)
+ *              output(key, value) key form (single-value output(expr))
  *   added    : import_decl (LANGUAGE-REFERENCE §1.3, godcc import)
  *              agent_application / agent_block (§1.5, godcc @agent)
- *              answer_decl (@answer final-answer template, godcc; spec prose
- *                           coverage pending — see LANGUAGE-REFERENCE §1)
+ *              answer_decl (@answer final-answer template; the final-response
+ *                           text line, distinct from the removed answer_stmt)
  *              @language / @mode declarations (already in §11 facts)
  *   quirks   : int(...) numeric cast is an implementation hack (godcc G13),
  *              NOT part of the grammar; `.type` field access and map key
@@ -40,7 +45,7 @@
 (*
  * Keywords (reserved; cannot be identifiers):
  *   function if else for while in return var let const output type enum
- *   parallel break continue code foreign source yield answer limit attempt
+ *   parallel break continue code foreign source yield limit attempt
  *   success failure with retry timeout default as request_input action import
  *   true false null
  *   string int float bool file void map array any
@@ -123,7 +128,7 @@ block    = "{" stmt_list "}" ;
 stmt_list = { statement } ;
 
 statement = if_stmt | for_stmt | while_stmt | return_stmt | yield_stmt
-          | answer_stmt | parallel_stmt | attempt_stmt | request_input_stmt
+          | parallel_stmt | attempt_stmt | request_input_stmt
           | break_stmt | continue_stmt | typed_var_decl | var_decl
           | output_stmt | expr_or_assign_stmt ;
 
@@ -137,7 +142,6 @@ while_stmt = "while" "(" expression ")" "limit" INT_LITERAL block ;
 
 return_stmt = "return" [ expression ] ";" ;
 yield_stmt  = "yield" [ expression ] ";" ;
-answer_stmt = "answer" "(" [ expression ] ")" ";" ;
 
 parallel_stmt = "parallel" "{" { [ IDENTIFIER ":" ] block } "}" ;
 
@@ -154,7 +158,9 @@ continue_stmt = "continue" ";" ;
 typed_var_decl = type_ref IDENTIFIER [ "=" expression ] ";" ;
 var_decl       = ( "var" | "let" ) IDENTIFIER [ "=" expression ] ";" ;
 
-output_stmt = "output" "(" expression "," expression ")" ";" ;
+output_stmt = "output" "(" expression ")" ";" ;  (* intermediate message *)
+              (* emitted to the response stream; non-terminating *)
+              (* model: docs/NCODA-OUTPUT-MODEL.md *)
 
 expr_or_assign_stmt = expression [ ( "=" | "+=" | "-=" | "*=" | "/=" | "<<" ) expression ] ";" ;
 
@@ -255,9 +261,11 @@ semicolon_opt      = [ ";" ] ;
  * - =, +=, -=, *=, /= and << have one language meaning each; whether a
  *   particular operand/store shape can be lowered is a target-capability
  *   question and never introduces assigner/node-version syntax.
- * - output(key, value) is workflow-only with a statically analyzable response
- *   key; answer(value) is advanced-chat-only; return is a function exit,
- *   output/answer publish responses and may continue.
+ * - output(expr) publishes one intermediate message to the response stream
+ *   (non-terminating; model docs/NCODA-OUTPUT-MODEL.md). return is a
+ *   function exit and the structured result; @answer declares the final
+ *   response text (terminal). answer(...) statement is REMOVED: its
+ *   intermediate-publish semantics folded into output.
  * - attempt and postfix operation policies apply only to manifest-declared
  *   workflow operations that expose the required physical Dify fields/handles.
  * - Call type arguments are accepted only by schema-dependent operations
@@ -288,7 +296,7 @@ semicolon_opt      = [ ";" ] ;
  *       return {"result": input}`;
  *       };
  *       let items = for (item in [value]) { yield decorate(item); };
- *       output("items", items);
+ *       output(items);
  *       return items[0];
  *   }
  *

@@ -32,7 +32,7 @@
 ```
 
 - `workflow`：标准工作流模式
-- `advanced-chat`：高级对话模式，支持 `@conversation` 声明和 `answer` 语句
+- `advanced-chat`：高级对话模式，支持 `@conversation` 声明和 `@answer` 最终答复声明
 - `agent`：智能体应用模式，配合 `@agent` 块声明（见 1.5），编译为最小图 `start → agent → end`
 
 ### 1.2 对话声明（仅 advanced-chat）
@@ -50,8 +50,9 @@
 - 会话变量是可变的，可在工作流中重新赋值，从而在轮次之间累积状态；
 - 单轮（`workflow`）模式没有会话持久化，不能使用 `@conversation` 声明。
 
-多轮执行时，每一轮用户输入都会进入同一个工作流实例，`answer` 语句把结果返回给
-当前轮次；会话变量则负责区分轮次间的持久状态与当轮输入。轮次相关语义详见工作流模式文档。
+多轮执行时，每一轮用户输入都会进入同一个工作流实例，`output` 语句向响应流发布
+中间消息，`@answer` 声明提供当轮最终答复；会话变量则负责区分轮次间的持久状态
+与当轮输入。轮次相关语义详见工作流模式文档。
 
 ### 1.3 顶层声明
 
@@ -390,21 +391,18 @@ function compute(int x) -> int {
 }
 ```
 
-### 5.7 output 语句（workflow 模式）
+### 5.7 output 语句（中间消息）
 
-在 `main` 函数中声明式输出到 End 节点：
+向响应流发布一条**中间消息**（进度/安抚/事件），流程继续、非终止。可在 `main`
+中任意位置多次出现，按序发布：
 
 ```ncoda
-output("result", computed_value);
-output("metadata", meta);
+output("正在生成报告，预计 1-3 分钟…");
+output(progress_text);
 return final_value;
 ```
 
-### 5.8 answer 语句（advanced-chat 模式）
-
-```ncoda
-answer(response_text);
-```
+语义模型见 `NCODA-OUTPUT-MODEL.md`（ncoda 语义独立，平台投影不承诺全覆盖）。
 
 ### 5.9 break / continue
 
@@ -609,8 +607,8 @@ let city = extracted.value.city;
 | 分支标签唯一性 | `parallel` 命名分支标签必须唯一（仅源码级，语义忽略）；重复分支名 = 编译错误 |
 | yield 合约 | `for` / `parallel for` 值表达式的每个可达路径恰好有一个 `yield`；`parallel` 块内禁止 `yield` |
 | let 不可变 | `let` 绑定后不可重新赋值 |
-| output 上下文 | `output(key, value)` 仅限 workflow 模式 |
-| answer 上下文 | `answer(value)` 仅限 advanced-chat 模式；`@mode agent` 下 main 仅允许 agent 入口语义（`run(...)`） |
+| output 上下文 | `output(expr)` 发布中间消息，非终止；`@mode agent` 下 main 仅允许 agent 入口语义（`run(...)`） |
+| answer 语句 | `answer(...)` 语句已移除（2026-08-23，语义并入 `output`）；`@answer` 声明保留 |
 | import 平台限定 | `import` 必须带平台限定符（如 `"coze-biz.web_search"`）；裸 import 或未知平台 = E1052 |
 | chatflow 入口 | `@mode advanced-chat` 入口首参必须命名为 `query`（E1054） |
 | 能力约束 | 合法语法仍受目标能力分类约束（REJECTED 形式返回诊断） |
@@ -629,9 +627,8 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.add.expression --> `syntax.add.expression` | `add_expr` | Grammar production add_expr |
 | <!-- DOCFORG:FACT id=syntax.agent.application --> `syntax.agent.application` | `agent_application` | @mode agent + @agent 块声明 |
 | <!-- DOCFORG:FACT id=syntax.agent.block --> `syntax.agent.block` | `agent_block` | @agent 配置块（model/instruction/strategy/max_iteration/memory/memory_window/tools/knowledge） |
-| <!-- DOCFORG:FACT id=syntax.answer.declaration --> `syntax.answer.declaration` | `answer_decl` | @answer 最终答案模板（workflow final-answer template） |
+| <!-- DOCFORG:FACT id=syntax.answer.declaration --> `syntax.answer.declaration` | `answer_decl` | @answer 最终答复文本模板（terminal；区别于已移除的 answer 语句） |
 | <!-- DOCFORG:FACT id=syntax.and.expression --> `syntax.and.expression` | `and_expr` | Grammar production and_expr |
-| <!-- DOCFORG:FACT id=syntax.answer.statement --> `syntax.answer.statement` | `answer_stmt` | Grammar production answer_stmt |
 | <!-- DOCFORG:FACT id=syntax.arg.list --> `syntax.arg.list` | `arg_list` | Grammar production arg_list |
 | <!-- DOCFORG:FACT id=syntax.arg.sequence --> `syntax.arg.sequence` | `arg_seq` | Grammar production arg_seq |
 | <!-- DOCFORG:FACT id=syntax.array.literal --> `syntax.array.literal` | `array_literal` | Grammar production array_literal |
@@ -683,7 +680,6 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.if.statement --> `syntax.if.statement` | `if_stmt` | Grammar production if_stmt |
 | <!-- DOCFORG:FACT id=syntax.import.declaration --> `syntax.import.declaration` | `import_decl` | 顶层 import "provider"; 平台提供商绑定 |
 | <!-- DOCFORG:FACT id=syntax.keyword.action --> `syntax.keyword.action` | `action` | Reserved keyword action |
-| <!-- DOCFORG:FACT id=syntax.keyword.answer --> `syntax.keyword.answer` | `answer` | Reserved keyword answer |
 | <!-- DOCFORG:FACT id=syntax.keyword.any --> `syntax.keyword.any` | `any` | Reserved keyword any |
 | <!-- DOCFORG:FACT id=syntax.keyword.array --> `syntax.keyword.array` | `array` | Reserved keyword array |
 | <!-- DOCFORG:FACT id=syntax.keyword.as --> `syntax.keyword.as` | `as` | Reserved keyword as |
@@ -712,7 +708,7 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.keyword.limit --> `syntax.keyword.limit` | `limit` | Reserved keyword limit |
 | <!-- DOCFORG:FACT id=syntax.keyword.map --> `syntax.keyword.map` | `map` | Reserved keyword map |
 | <!-- DOCFORG:FACT id=syntax.keyword.null --> `syntax.keyword.null` | `null` | Reserved keyword null |
-| <!-- DOCFORG:FACT id=syntax.keyword.output --> `syntax.keyword.output` | `output` | Reserved keyword output |
+| <!-- DOCFORG:FACT id=syntax.keyword.output --> `syntax.keyword.output` | `output` | Reserved keyword output（`answer` 保留字已移除，`@answer` 仍为指令） |
 | <!-- DOCFORG:FACT id=syntax.keyword.parallel --> `syntax.keyword.parallel` | `parallel` | Reserved keyword parallel |
 | <!-- DOCFORG:FACT id=syntax.keyword.request_input --> `syntax.keyword.request_input` | `request_input` | Reserved keyword request_input |
 | <!-- DOCFORG:FACT id=syntax.keyword.retry --> `syntax.keyword.retry` | `retry` | Reserved keyword retry |
@@ -743,7 +739,7 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.operation.policy --> `syntax.operation.policy` | `operation_policy` | Grammar production operation_policy |
 | <!-- DOCFORG:FACT id=syntax.optional.suffix --> `syntax.optional.suffix` | `optional_suffix` | Grammar production optional_suffix |
 | <!-- DOCFORG:FACT id=syntax.or.expression --> `syntax.or.expression` | `or_expr` | Grammar production or_expr |
-| <!-- DOCFORG:FACT id=syntax.output.statement --> `syntax.output.statement` | `output_stmt` | Grammar production output_stmt |
+| <!-- DOCFORG:FACT id=syntax.output.statement --> `syntax.output.statement` | `output_stmt` | 中间消息发布（单值 `output(expr)`，非终止；模型 docs/NCODA-OUTPUT-MODEL.md） |
 | <!-- DOCFORG:FACT id=syntax.parallel.branches --> `syntax.parallel.branches` | `parallel_branches` | Grammar production parallel_branches |
 | <!-- DOCFORG:FACT id=syntax.parallel.expression --> `syntax.parallel.expression` | `parallel_expr` | 值表达式形态仅限 parallel for；`let x = parallel {...}` 已删除 |
 | <!-- DOCFORG:FACT id=syntax.parallel.for.expression --> `syntax.parallel.for.expression` | `parallel_for_expr` | Grammar production parallel_for_expr |

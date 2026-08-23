@@ -48,7 +48,7 @@ NodeCoda 源文件经过词法和语法分析、绑定与类型检查、目标�
 
 ## 程序与入口
 
-NodeCoda 程序由可选的 `@mode`、类型和枚举声明、常量、辅助函数以及唯一的 `main` 入口组成。`workflow` 使用 End 输出，`advanced-chat` 使用 Answer 消息；`output` 和 `answer` 不会互相隐式转换。
+NodeCoda 程序由可选的 `@mode`、类型和枚举声明、常量、辅助函数以及唯一的 `main` 入口组成。`workflow` 使用 End 输出，`advanced-chat` 使用 Answer 消息；`output` 发布中间消息（非终止），`@answer` 声明最终答复文本，`return` 返回结构化结果。`answer(...)` 语句已移除（2026-08-23）。
 
 ## 值、操作和控制流
 
