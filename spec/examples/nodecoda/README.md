@@ -28,6 +28,7 @@
 | 50_condition_direct | direct condition | ✓ | ✓ | Dify 原生 condition operator |
 | 51_condition_calculation | calculated condition | ✓ | ✓ | typed Code materialization 后判断 |
 | 57_parameter_extractor | schema-dependent extraction | ✓ | ✓ | flat required prompt shape；必须检查 `.ok` |
+| 62_llm_open_object | LLMResponse 信封 + llm&lt;T&gt; + object 降级 | ✓ | ✓ | record 不展开顶层字段；空结构降级为开放对象 |
 
 **已实现语义功能**：
 1. ✓ Start 输入映射为 `function main(...)` 的强类型参数

@@ -1,0 +1,34 @@
+@language nodecoda/1
+@mode workflow
+
+// 62_llm_open_object.ncoda — 统一 LLM 语义：LLMResponse 信封 + llm<T> 泛型
+// + 开放对象 object 降级。
+//
+//   llm(model, config)     -> LLMResponse<string>
+//   llm<T>(model, config)  -> LLMResponse<T>，T 只描述 response.text 的语义类型
+//
+// 语义要点：
+//   1. LLMResponse 规范字段：text: T、reasoning_content: string?、
+//      usage: LLMUsage?、finish_reason: string?（content 不是结果别名）。
+//   2. T 为 record 时经 response_format 要求原生结构化输出；record 不展开
+//      为顶层结果字段或平台物理端口。
+//   3. 平台只给 {type: object} 且字段清单为空时，整个 T 降级为 object
+//      （开放对象类型：字段访问返回 any，any 不可收窄为具体类型槽位）。
+
+type Reply = { string text; }
+
+function main(string question) -> array<object> {
+    // 泛型 llm<T>：r.text 类型为 Reply；response_format 要求结构化 JSON
+    let r = llm<Reply>("openai/gpt-4o", {
+        "messages": [{ "role": "user", "content": question }],
+        "response_format": { "type": "json_object" }
+    });
+    let reply_text = r.text.text;
+
+    // 开放对象：数组元素字段清单平台未知 -> array<object>；
+    // 元素字段访问返回 any，不能再塞进具体类型槽位（编译期拒绝）
+    let items = llm<array<object>>("openai/gpt-4o", {
+        "messages": [{ "role": "user", "content": "List " + reply_text }]
+    });
+    return items.text;
+}

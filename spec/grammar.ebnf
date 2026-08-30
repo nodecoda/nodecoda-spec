@@ -48,7 +48,7 @@
  *   parallel break continue code foreign source yield limit attempt
  *   success failure with retry timeout default as request_input action import
  *   true false null
- *   string int float bool file void map array any
+ *   string int float bool file void map array any object
  *   @language @mode @conversation @agent @answer
  *
  * Literals:
@@ -111,7 +111,7 @@ type_atom = primitive_type
           | "array" "<" type_ref ">"
           | "map" "<" "string" "," type_ref ">" ;
 
-primitive_type = "string" | "int" | "float" | "bool" | "void" | "any" ;
+primitive_type = "string" | "int" | "float" | "bool" | "void" | "any" | "object" ;
 
 file_type_ref = "file" [ "<"
                          file_type_list

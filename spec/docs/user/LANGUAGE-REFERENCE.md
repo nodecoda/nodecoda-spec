@@ -127,6 +127,13 @@ function main(string query) -> string {
 | `file` | 文件引用 | — |
 | `void` | 无返回值 | — |
 | `any` | 任意类型 | — |
+| `object` | 开放对象类型 | `{ "begin": 0, "end": 1 }` |
+
+`object` 是**开放对象类型**：字段不静态声明，任何字段访问在编译期都合法。
+字段访问的结果类型为 `any`，且 **`any` 不可收窄**——把 `any` 值塞进具体的类型
+槽位（如 `string x = v.text[0].begin`）是编译错误。`object` 用于 LLM 输出中
+平台只给 `{type: object}`、无法静态确定字段结构的场景（如 `array<object>` 经
+js-code 解码的返回值），由编译器把空结构降级为 `object`（详见 §6.1）。
 
 ### 2.2 复合类型
 
@@ -430,6 +437,45 @@ function analyze(string text) -> string {
     return result.text;
 }
 ```
+
+#### `llm` 的返回信封 `LLMResponse`
+
+`llm(model, config)` 返回 `LLMResponse<string>`；`llm<T>(model, config)` 返回
+`LLMResponse<T>`。`T` **始终且只**表示 `response.text` 的语义类型，record 不再
+展开为顶层结果字段或平台物理端口。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `text` | `T` | 响应文本（语义类型由 `T` 决定） |
+| `reasoning_content` | `string?` | 推理过程（可选） |
+| `usage` | `LLMUsage?` | 用量信息（可选） |
+| `finish_reason` | `string?` | 结束原因（可选） |
+
+- `content` 不是结果别名；平台不提供的 metadata 规范化为 `null`，不得捏造值。
+- 非 `string` 的 `T` 必须由目标原生结构化模式或显式 adapter 严格验证；目标无法
+  证明约束时编译期报 `ADAPTER_ERROR`，不得把未校验字符串伪装成 `T`。
+
+泛型 `llm<T>` 示例（`T` 为 record 时经 `response_format` 要求原生结构化输出）：
+
+```ncoda
+type Reply = { string text; }
+
+function extract(string text) -> string {
+    let r = llm<Reply>("openai/gpt-4o", {
+        "messages": [{ "role": "user", "content": text }],
+        "response_format": { "type": "json_object" }
+    });
+    return r.text.text;   // r.text: Reply，访问其 text 字段
+}
+```
+
+#### 降级为 `object`
+
+当 `T` 的字段类型无法由平台证明（典型：平台导出 `{type: object}` 且字段清单
+为空，如 `array<object>` 经 js-code 解码的返回值）时，编译器把整个 `T` 降级为
+`object`（开放对象类型，见 §2.1）——不再报 `ADAPTER_ERROR`，字段访问返回 `any`。
+这是对"平台给不出字段清单"的显式承认，而不是把未校验字符串伪装成结构类型；
+被降级的 `T` 无法在编译期静态校验字段类型。
 
 ### 6.2 code 函数
 
