@@ -29,6 +29,8 @@
 | 51_condition_calculation | calculated condition | ✓ | ✓ | typed Code materialization 后判断 |
 | 57_parameter_extractor | schema-dependent extraction | ✓ | ✓ | flat required prompt shape；必须检查 `.ok` |
 | 62_llm_open_object | LLMResponse 信封 + llm&lt;T&gt; + object 降级 | ✓ | ✓ | record 不展开顶层字段；空结构降级为开放对象 |
+| 63_switch_classifier | switch 多出口 LLM 分类 | ✓ | ✓ | case 标签顺序 = branch_0..N；default 可选；结果绑定 `-> r` 访问 classificationId/reason |
+| 64_subflow_decl | subflow 子工作流声明 + 调用 | ✓ | ✓ | 身份 = (workflowId, version)；dify 不支持（编译期诊断） |
 
 **已实现语义功能**：
 1. ✓ Start 输入映射为 `function main(...)` 的强类型参数
@@ -40,6 +42,9 @@
 7. ✓ `HTTPResponse` 结构体（body, status_code, headers）
 8. ✓ 隔离 named/plain `parallel` lowering；生产 target 使用普通 DAG，不生成 synthetic 节点
 9. ✓ `extract<T>` schema-dependent operation，返回 `value`/`ok`/`reason`/`usage`
+10. ✓ `ask<Form, Action>` 挂起式人工输入（HITL）：表单字段 + 动作按钮 + 可选 timeout 分支
+11. ✓ `switch` 多出口 LLM 分类：case 标签顺序 = branch_0..N + default 兜底 + `-> r` 结果绑定
+12. ✓ `subflow` 子工作流顶层声明 + 调用（身份 = workflowId + version；dify 不支持）
 
 ## 映射规则
 

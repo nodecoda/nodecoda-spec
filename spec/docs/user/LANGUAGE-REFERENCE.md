@@ -66,6 +66,7 @@
 | `function` | `function name(params) -> type { ... }` | 工作流函数 |
 | `code` | `code name(params) -> type { ... }` | 纯计算函数 |
 | `import` | `import "provider";` | 平台提供商绑定（编译期封闭世界校验） |
+| `subflow` | `subflow <name> = ("<id>", "<version>") { input: { ... }, output: { ... } };` | 子工作流声明（身份 = workflowId + version；input/output 契约 = 静态 record 形状） |
 
 ### 1.4 入口函数
 
@@ -411,6 +412,38 @@ return final_value;
 
 语义模型见 `NCODA-OUTPUT-MODEL.md`（ncoda 语义独立，平台投影不承诺全覆盖）。
 
+### 5.8 ask 语句（挂起式人工输入，HITL）
+
+`ask` 语句用于挂起式人工输入（Human-in-the-Loop）：工作流执行到此处时暂停，弹出一个表单让人填写/点击按钮，拿到数据后继续。
+
+```ncoda
+// 定义表单类型和动作枚举
+enum ReviewAction { approve, reject }
+type ReviewForm = { string comment; int priority; }
+
+ask<ReviewForm, ReviewAction>({
+    content: "Review the submission",
+    fields: {
+        comment: { kind: "paragraph" },
+        priority: { kind: "select" }
+    },
+    actions: {
+        approve: { title: "Approve", style: "primary" },
+        reject: { title: "Reject", style: "default" }
+    },
+}) as review {
+    action ReviewAction.approve { return review.comment; }
+    action ReviewAction.reject { return review.priority.value; }
+}
+```
+
+- 关键字 `ask`（`request_input` 保留为兼容别名，旧语料继续可解析）；
+- 类型参数 `Form`（record 类型）和 `Action`（enum 类型），显式声明；
+- 配置 map 字面量包含 `content`（提示文本）、`fields`（表单字段定义）、`actions`（动作按钮定义）；
+- `timeout` 配置项与 `timeout` 分支均可选（平台无超时边时允许缺省）；
+- 结果绑定 `as <name>` 后可在分支体内访问表单字段值（`review.<field>`）；
+- action 分支至少一个；分支间互斥（平台语义：用户只能点击一个按钮或超时）。
+
 ### 5.9 break / continue
 
 ```ncoda
@@ -420,6 +453,33 @@ for (item in items) {
     process(item);
 }
 ```
+
+### 5.10 switch 语句（多出口 LLM 分类）
+
+`switch` 语句用于执行多出口 LLM 分类：LLM 将 query 分类到预置标签，命中标签则执行对应分支。
+
+```ncoda
+// 基础形态：query（分类标签从 case 标签提取，顺序 = branch_0..N）
+switch (query) {
+    "support": { ... }
+    "billing": { ... }
+    default: { ... }
+}
+
+// 带结果绑定：分支体内访问 classificationId / reason
+switch (query) -> r {
+    "support": { log(r.reason); }
+    default: { log(r.classificationId); }
+}
+```
+
+- 关键字 `switch`（`intent` 保留为废弃别名，迁移期可解析）；
+- 判别式 = 可分类输入（string 或 enum 值）；case 标签 = 字符串字面量（分类类别），顺序 = 平台 branch_0..N；
+- 结果绑定 `-> <name>` 可选：绑定后分支体内可用 `name.classificationId`（int）和 `name.reason`（string）；
+- 可选 LLM 配置：`switch (query, { "temperature": 0.7, "max_tokens": 1024 }) -> r { ... }`；
+- 空分支 = **编译错误**（悬挂 → runtime 不确定性）；`default` 可选（缺省 = 平台无 default 出口）；
+- 分支间互斥（平台语义：命中分支执行，其余不执行）。
+
 
 ---
 
@@ -680,6 +740,10 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.array.literal --> `syntax.array.literal` | `array_literal` | Grammar production array_literal |
 | <!-- DOCFORG:FACT id=syntax.array.suffix.sequence --> `syntax.array.suffix.sequence` | `array_suffix_seq` | Grammar production array_suffix_seq |
 | <!-- DOCFORG:FACT id=syntax.attempt.statement --> `syntax.attempt.statement` | `attempt_stmt` | Grammar production attempt_stmt |
+| <!-- DOCFORG:FACT id=syntax.switch.statement --> `syntax.switch.statement` | `switch_stmt` | Grammar production switch_stmt |
+| <!-- DOCFORG:FACT id=syntax.subflow.declaration --> `syntax.subflow.declaration` | `subflow_decl` | Grammar production subflow_decl |
+| <!-- DOCFORG:FACT id=syntax.subflow.contract.list --> `syntax.subflow.contract.list` | `subflow_contract_list` | Grammar production subflow_contract_list |
+| <!-- DOCFORG:FACT id=syntax.subflow.contract --> `syntax.subflow.contract` | `subflow_contract` | Grammar production subflow_contract |
 | <!-- DOCFORG:FACT id=syntax.block --> `syntax.block` | `block` | Grammar production block |
 | <!-- DOCFORG:FACT id=syntax.break.statement --> `syntax.break.statement` | `break_stmt` | Grammar production break_stmt |
 | <!-- DOCFORG:FACT id=syntax.code.direct.output --> `syntax.code.direct.output` | `code_direct_output` | Grammar production code_direct_output |
@@ -729,6 +793,7 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.keyword.any --> `syntax.keyword.any` | `any` | Reserved keyword any |
 | <!-- DOCFORG:FACT id=syntax.keyword.array --> `syntax.keyword.array` | `array` | Reserved keyword array |
 | <!-- DOCFORG:FACT id=syntax.keyword.as --> `syntax.keyword.as` | `as` | Reserved keyword as |
+| <!-- DOCFORG:FACT id=syntax.keyword.ask --> `syntax.keyword.ask` | `ask` | Reserved keyword ask（`request_input` 保留为兼容别名） |
 | <!-- DOCFORG:FACT id=syntax.keyword.attempt --> `syntax.keyword.attempt` | `attempt` | Reserved keyword attempt |
 | <!-- DOCFORG:FACT id=syntax.keyword.bool --> `syntax.keyword.bool` | `bool` | Reserved keyword bool |
 | <!-- DOCFORG:FACT id=syntax.keyword.break --> `syntax.keyword.break` | `break` | Reserved keyword break |
@@ -761,8 +826,10 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.keyword.return --> `syntax.keyword.return` | `return` | Reserved keyword return |
 | <!-- DOCFORG:FACT id=syntax.keyword.source --> `syntax.keyword.source` | `source` | Reserved keyword source |
 | <!-- DOCFORG:FACT id=syntax.keyword.stream --> `syntax.keyword.stream` | `stream` | Reserved keyword stream |
+| <!-- DOCFORG:FACT id=syntax.keyword.switch --> `syntax.keyword.switch` | `switch` | Reserved keyword switch（`intent` 保留为废弃别名） |
 | <!-- DOCFORG:FACT id=syntax.keyword.string --> `syntax.keyword.string` | `string` | Reserved keyword string |
 | <!-- DOCFORG:FACT id=syntax.keyword.success --> `syntax.keyword.success` | `success` | Reserved keyword success |
+| <!-- DOCFORG:FACT id=syntax.keyword.subflow --> `syntax.keyword.subflow` | `subflow` | Reserved keyword subflow |
 | <!-- DOCFORG:FACT id=syntax.keyword.timeout --> `syntax.keyword.timeout` | `timeout` | Reserved keyword timeout |
 | <!-- DOCFORG:FACT id=syntax.keyword.true --> `syntax.keyword.true` | `true` | Reserved keyword true |
 | <!-- DOCFORG:FACT id=syntax.keyword.type --> `syntax.keyword.type` | `type` | Reserved keyword type |
@@ -797,7 +864,7 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.primary.expression --> `syntax.primary.expression` | `primary_expr` | Grammar production primary_expr |
 | <!-- DOCFORG:FACT id=syntax.primitive.type --> `syntax.primitive.type` | `primitive_type` | Grammar production primitive_type |
 | <!-- DOCFORG:FACT id=syntax.program --> `syntax.program` | `program` | Grammar production program |
-| <!-- DOCFORG:FACT id=syntax.request.input.statement --> `syntax.request.input.statement` | `request_input_stmt` | Grammar production request_input_stmt |
+| <!-- DOCFORG:FACT id=syntax.ask.statement --> `syntax.ask.statement` | `ask_stmt` | Grammar production ask_stmt（`request_input` 保留为兼容别名） |
 | <!-- DOCFORG:FACT id=syntax.return.statement --> `syntax.return.statement` | `return_stmt` | Grammar production return_stmt |
 | <!-- DOCFORG:FACT id=syntax.return.type.optional --> `syntax.return.type.optional` | `return_type_opt` | Grammar production return_type_opt |
 | <!-- DOCFORG:FACT id=syntax.semicolon.optional --> `syntax.semicolon.optional` | `semicolon_opt` | Grammar production semicolon_opt |

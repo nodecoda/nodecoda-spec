@@ -1,0 +1,20 @@
+@language nodecoda/1
+@mode workflow
+
+// 64_subflow_decl.ncoda — subflow 子工作流顶层声明 + 调用。
+// 身份 = (workflowId, workflowVersion)；input/output 契约 = 静态 record 形状。
+// coze-biz 落地 TypeSubflow 节点（inputDefs/node_inputs/node_outputs）；
+// dify 不支持（编译期诊断，不静默产出）。
+
+type Timeline = { int start; int end; };
+
+subflow lyrics_timeline = ("7567215314397528118", "v0.0.1") {
+  input:  { string lyric; int time; },
+  output: { string text; array<Timeline> timelines; }
+};
+
+function main(string l, int t) -> string {
+    let v = lyrics_timeline({ lyric: l, time: t });
+    let first = v.timelines[0].start;
+    return v.text + "/" + first;
+}

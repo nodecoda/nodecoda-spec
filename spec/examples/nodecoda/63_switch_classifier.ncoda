@@ -1,0 +1,20 @@
+@language nodecoda/1
+@mode workflow
+
+// 63_switch_classifier.ncoda — switch 多出口 LLM 分类（多出口分支，统一 intent/classify）。
+// 平台形状：coze IntentDetector（type 22）branch_0..N + default。
+// 分类标签从 case 标签提取（顺序 = branch_0..N）。
+// default 分支 coze 支持（兜底）；dify question-classifier 无 default 端口 → 编译期 ADAPTER_ERROR。
+// 结果绑定 -> r：分支体内访问 r.classificationId（int）/ r.reason（string）。
+
+function main(string query) -> string {
+    switch (query) -> r {
+        "support": {
+            output("support: " + r.reason);
+            return "support handled";
+        }
+        "billing": {
+            return "billing handled";
+        }
+    }
+}
