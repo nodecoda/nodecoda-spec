@@ -498,6 +498,42 @@ function analyze(string text) -> string {
 }
 ```
 
+#### `llm` 的 config 参数：已知键类型规约
+
+`llm(model, config)` 的 `config` 是**开放字典**（`map<string,any>`）：已知键
+做显式结构化校验，未知键保持开放透传。可选性用 `?`（Optional）表达——键
+缺失合法，出现时值必须可赋值给键的类型。已知键类型如下：
+
+| 键 | 类型 | 说明 |
+|------|------|------|
+| `messages` | `array<{role: string, content: string}>` | 消息体；`role`/`content` 必须为 `string` |
+| `temperature` | `float` | 采样温度；`int` 字面量自动拓宽 |
+| `top_p` | `float` | 核采样；`int` 字面量自动拓宽 |
+| `max_tokens` | `int` | 最大生成 token 数 |
+| `timeout_ms` | `int` | 请求超时（毫秒） |
+| `model` | `string` | 模型名覆盖 |
+| `systemPrompt` | `string` | 系统提示词 |
+| `userPrompt` | `string` | 用户提示词 |
+| `reasoning_format` | `string` | 推理格式（如 `separated`） |
+| `stream` | `bool` | 是否流式 |
+
+```ncoda
+function summarize(string text) -> string {
+    let r = llm("openai/gpt-4o", {
+        "temperature": 0.7,          // float；写 1 也合法（int 拓宽）
+        "max_tokens": 2048,          // int
+        "timeout_ms": 600000,        // int，可选
+        "messages": [{ "role": "user", "content": text }]
+    });
+    return r.text;
+}
+```
+
+**规则**：
+- 键类型不符 = 编译期 `TYPE_MISMATCH`（如 `temperature: "hot"`、`stream: 1`）。
+- 未知键不报错（`map<string,any>` 开放语义，L2 边界），供平台自定义参数透传。
+- `int → float` 自动拓宽；`float → int` 不反向收窄（`max_tokens` 传小数报错）。
+
 #### `llm` 的返回信封 `LLMResponse`
 
 `llm(model, config)` 返回 `LLMResponse<string>`；`llm<T>(model, config)` 返回
