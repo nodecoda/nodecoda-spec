@@ -325,7 +325,10 @@ let doubled = for (x in numbers) {
 };
 ```
 
-**for 表达式的 yield 合约**：每个可达路径必须恰好有一个 `yield`。`return`、`break`、`continue` 在 for 表达式体内被禁止。
+**for 表达式的 yield 合约**：每个可达的**正常路径**至少有一个 `yield`，且 `yield` 必须位于循环体末尾（`yield` 是循环的输出注解，每轮迭代结束固定执行；其后只允许再出现 `yield`）。
+
+- `break` / `continue` 在 for 表达式体内**合法**：提前退出路径豁免 yield 要求，其后语句不可达；
+- `return` 在 for 表达式体内**非法**（E1043：函数级退出破坏聚合语义）。
 
 ### 5.3 while 循环
 
@@ -356,24 +359,56 @@ parallel {
 
 - 并行分支无序、无位置语义——要数组请显式写 `[a.x, b.x]`，由作者定序；
 - 分支是**透明屏障（非 block）**：分支内声明的变量全部透明透出到外层，下游直接按变量名访问；兄弟分支之间互不可见（并发数据竞争 = 编译错误）；
-- **同名跨分支导出 = 编译错误**：每个分支有自己的 producer，裸名引用无法解析到唯一值——即使同类型也冲突，必须改分支局部变量名；
-- 分支内 `return` = **流程结束**（terminate whole flow，直连 end），不是分支退出；栅栏不等待 return 分支；
+- **同名跨分支导出 = 编译错误**（E1035）：每个分支有自己的 producer，裸名引用无法解析到唯一值——即使同类型也冲突，必须改分支局部变量名；
+- 分支内 `return` = **流程结束**（terminate whole flow，不是分支退出），栅栏不等待 return 分支；带值出口经汇聚 merge 绑到唯一 `end`，仅副作用的出口直连 `end`（多出口契约见 §5.6）；
 - 分支命名标签（`r1:` / `u:`）可选，保留但仅源码级，语义忽略；重复分支名 = 语法错误；
 - **表达式形态 `let x = parallel { ... }` 不存在**（已删除，不得使用）；`yield` 不得出现在 parallel 块内。
 
-`parallel for` 是值表达式，配置项和 `yield` 均为必需：
+`parallel for` 有**两种形态**，配置项都必需（必须显式给出 `concurrency` 和 `on_error`；`on_error` 取值 `terminate`、`keep_null`、`remove_failed`）：
 
 ```ncoda
+// ① 值表达式：每个迭代经 yield 产出，按位置收集为 array<T>（yield 必需）
 let results = parallel for (
-    item in items,
-    concurrency: 5,
-    on_error: keep_null
+    item in items, concurrency: 5, on_error: keep_null
 ) {
     yield process(item);
 };
+
+// ② 语句形态：副作用并发循环，体是普通 block（无 yield）
+parallel for (
+    item in items, concurrency: 5, on_error: terminate
+) {
+    notify(item);
+}
 ```
 
-`on_error` 选项：`terminate`、`keep_null`、`remove_failed`。当前语法要求显式给出 `concurrency` 和 `on_error`；`yield` 仅保留于 `for` / `parallel for`（循环产出）。
+`yield` 仅保留于 `for` / `parallel for`（循环产出）；两种形态的**迭代体作用域语义完全相同**（见下）。
+
+#### `parallel for` 迭代体 = 迭代局部作用域
+
+迭代彼此独立、执行顺序不确定。语言用一条规则把「跨迭代依赖」在**结构上**消灭：
+迭代体是一个新的、**迭代局部**的作用域。
+
+| 构造 | 语义 |
+|------|------|
+| 体内 `let` / 迭代变量 | 迭代局部 |
+| 体内**读**循环外名字 | 循环**入口快照**（只读视图）——迭代 i 永远读不到迭代 j 的写 |
+| 体内**写**循环外变量 | **迭代局部、不逃逸**：本迭代后续语句可见，兄弟迭代看不见，循环之外也看不见（死写无害、合法） |
+| 循环**之外**读「被迭代写过」的名字 | **E1036 PARALLEL_ACCESS_HAZARD**：拿到的是循环**前**的值，与作者的写意图不符 ⇒ fail loud。改写法：用 `yield` 收集后再读循环值，或改用顺序 `for`（末次胜出） |
+
+控制转移的判据是「**是否选值 / 是否停循环**」，不是「关键字是不是 `return`」：
+
+| 构造（在迭代体内） | 语义 | 诊断 |
+|--------------------|------|------|
+| `yield` | 迭代出口值（按位置收集） | 合法（迭代局部） |
+| `continue` | 结束本迭代剩余部分 | 合法（迭代局部） |
+| `break`（目标 = 该并发循环） | 终止**整个**循环：并发下「已执行 / 未执行的迭代集合」随调度变化 | **E1037 PARALLEL_EXTERNAL_EXIT** |
+| 带值 `return <v>` | 终止流程并**选值**：并发下「哪个迭代的值胜出」不确定 | **E1037** |
+| void `return;` | 终止流程但**不选值** ⇒ 可观察结果确定（流程结束） | 合法 |
+
+- 体内**嵌套**的顺序 `for` / `while` 里的 `break` 目标是**内层循环**（迭代局部）⇒ 合法；
+- 同一把尺子对**语句形态与表达式形态**、对**任意嵌套深度**都成立（不因宿主种类分叉）；
+- 推论：迭代局部写不需要目标平台提供「迭代间共享状态」通道；void `return;` 只要求平台允许「容器内节点直连流程 `end`」。
 
 ### 5.5 attempt / failure（错误恢复）
 
@@ -398,6 +433,11 @@ function compute(int x) -> int {
     return x * 2;
 }
 ```
+
+- `return` 的作用域 = **当前函数 / 当前流程**，**循环不构成边界**：循环体内的 `return` 穿透循环（不是「只跳出循环」）；分支（`if` / `switch` / `parallel` 分支）内的 `return` 同样是流程返回；
+- 唯一例外：QA `action` / attempt 分支体内的 `return` 是该分支的**结果值**（subscope return，见 §5.8），不是流程返回；
+- `parallel for` 迭代体内的**带值** `return <v>` 例外地是**语言错**（E1037，见 §5.4）；void `return;` 合法；
+- 若当前 Build Target 尚未实现某形态的 lowering，返回目标能力诊断（E1034，可约未实现，非语言错）。
 
 ### 5.7 output 语句（中间消息）
 
@@ -747,7 +787,10 @@ let city = extracted.value.city;
 | 无递归 | 用户函数调用图必须是无环的 |
 | while 上限 | `while limit` 和 `parallel concurrency` 必须是正整数字面量 |
 | 分支标签唯一性 | `parallel` 命名分支标签必须唯一（仅源码级，语义忽略）；重复分支名 = 编译错误 |
-| yield 合约 | `for` / `parallel for` 值表达式的每个可达路径恰好有一个 `yield`；`parallel` 块内禁止 `yield` |
+| yield 合约 | `for` / `parallel for` 值表达式的每个**正常路径**至少有一个 `yield`，且 `yield` 必须在体末尾（提前退出路径豁免）；`return` 在值 for 体内非法（E1043）；`parallel` 块内禁止 `yield` |
+| return 作用域 | `return` 归属当前函数 / 当前流程，循环与分支不构成边界（QA action / attempt 分支的 `return` 是分支结果值）；`parallel for` 迭代体内带值 `return <v>` = E1037 |
+| parallel for 迭代局部 | `parallel for` 迭代体内对循环外变量的写 = 迭代局部、不逃逸（死写合法）；循环之外读该名字 = E1036（读到的是循环前的值） |
+| parallel for 控制转移 | 迭代体内 `yield` / `continue` 迭代局部（合法）；`break` 与带值 `return <v>` = E1037（并发下结果不确定）；void `return;` 合法（不选值 ⇒ 结果确定） |
 | let 不可变 | `let` 绑定后不可重新赋值 |
 | output 上下文 | `output(expr)` 发布中间消息，非终止；`@mode agent` 下 main 仅允许 agent 入口语义（`run(...)`） |
 | answer 语句 | `answer(...)` 语句已移除（2026-08-23，语义并入 `output`）；`@answer` 声明保留 |
@@ -892,6 +935,7 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.parallel.branches --> `syntax.parallel.branches` | `parallel_branches` | Grammar production parallel_branches |
 | <!-- DOCFORG:FACT id=syntax.parallel.expression --> `syntax.parallel.expression` | `parallel_expr` | 值表达式形态仅限 parallel for；`let x = parallel {...}` 已删除 |
 | <!-- DOCFORG:FACT id=syntax.parallel.for.expression --> `syntax.parallel.for.expression` | `parallel_for_expr` | Grammar production parallel_for_expr |
+| <!-- DOCFORG:FACT id=syntax.parallel.for.statement --> `syntax.parallel.for.statement` | `parallel_for_stmt` | 语句形态副作用并发循环（体为普通 block，无 yield） |
 | <!-- DOCFORG:FACT id=syntax.parallel.statement --> `syntax.parallel.statement` | `parallel_stmt` | Grammar production parallel_stmt |
 | <!-- DOCFORG:FACT id=syntax.param --> `syntax.param` | `param` | Grammar production param |
 | <!-- DOCFORG:FACT id=syntax.param.list --> `syntax.param.list` | `param_list` | Grammar production param_list |

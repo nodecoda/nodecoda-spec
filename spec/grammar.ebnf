@@ -36,6 +36,9 @@
  *                           text line, distinct from the removed answer_stmt)
  *              @language / @mode declarations (already in §11 facts)
  *   added    : ask_stmt / switch_stmt / subflow_decl (2026-08-31, godcc ask/switch/subflow)
+ *              parallel_for_stmt (2026-09-14, godcc — statement-level side-effect
+ *                  parallel loop; the iteration-scope contract lives in
+ *                  LANGUAGE-REFERENCE §5.4)
  *   quirks   : int(...) numeric cast is an implementation hack (godcc G13),
  *              NOT part of the grammar; `.type` field access and map key
  *              `timeout` are accepted by the parser as contextual words —
@@ -130,7 +133,7 @@ block    = "{" stmt_list "}" ;
 stmt_list = { statement } ;
 
 statement = if_stmt | for_stmt | while_stmt | return_stmt | yield_stmt
-          | parallel_stmt | attempt_stmt | ask_stmt | switch_stmt
+          | parallel_stmt | parallel_for_stmt | attempt_stmt | ask_stmt | switch_stmt
           | break_stmt | continue_stmt | typed_var_decl | var_decl
           | output_stmt | expr_or_assign_stmt ;
 
@@ -146,6 +149,13 @@ return_stmt = "return" [ expression ] ";" ;
 yield_stmt  = "yield" [ expression ] ";" ;
 
 parallel_stmt = "parallel" "{" { [ IDENTIFIER ":" ] block } "}" ;
+
+parallel_for_stmt = "parallel" "for" "(" for_var "in" expression
+                    "," "concurrency" ":" INT_LITERAL
+                    "," "on_error" ":" IDENTIFIER ")" block ;
+                    (* 语句形态：副作用并发循环，体是普通 block（无 yield）；
+                       迭代体作用域契约（迭代局部写 / 逃逸读 E1036 / 控制转移
+                       E1037）见 LANGUAGE-REFERENCE §5.4。*)
 
 attempt_stmt = "attempt" expression "as" IDENTIFIER
                "{" "success" block "failure" "(" IDENTIFIER ")" block "}" ;
@@ -270,8 +280,21 @@ semicolon_opt      = [ ";" ] ;
  * - Named parallel branches have unique names; branch labels are source-level
  *   only (semantically ignored); parallel is a transparent barrier and never
  *   yields a collection value (no `let x = parallel {...}`).
- * - for_expr / parallel_for_expr bodies contain exactly one compatible yield
- *   on every reachable path; return/break/continue are rejected inside them.
+ * - for_expr / parallel_for_expr bodies require at least one yield on every
+ *   NORMAL path (paths that exit early are exempt) and the yield must be the
+ *   last statement(s) of the body. `return` cannot exit a value-producing
+ *   for (E1043: a function-level exit would break the aggregation).
+ *   `break`/`continue` are legal in a for_expr (early exit; excluded from the
+ *   yield requirement), while inside a parallel_for body both `break` and a
+ *   value-carrying `return <v>` are E1037 (scheduler-dependent external
+ *   exit) and `continue` stays legal.
+ * - parallel-for iteration bodies are ITERATION-LOCAL scopes: a write to an
+ *   outer name never escapes the loop (dead writes are legal), reads inside
+ *   the iteration see that iteration's write, and a read of an
+ *   iteration-written name AFTER the loop is E1036. `yield`/`continue` are
+ *   iteration-local; `break` and value-carrying `return <v>` are E1037;
+ *   a void `return;` is legal (it selects no value, so the outcome is
+ *   deterministic).
  * - let bindings are immutable. var assignment is legal only for statically
  *   proven target-owned state (Loop state, advanced-chat conversation state);
  *   ordinary workflow mutation is rejected.

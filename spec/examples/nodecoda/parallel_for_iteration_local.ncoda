@@ -1,0 +1,33 @@
+@language nodecoda/1
+// parallel_for_iteration_local.ncoda
+// `parallel for` 迭代体 = 迭代局部作用域（语言契约见 LANGUAGE-REFERENCE §5.4）。
+//
+// 本样例演示合法一侧：
+//   ① 迭代体内写循环外变量 = 迭代局部、不逃逸（死写无害）；
+//   ② 体内「写后读」读到的是本迭代刚写的值 —— 合法；
+//   ③ 迭代唯一的出口是 yield（按位置收集为 array<T>）。
+//
+// 非法一侧（不写进样例，见 §5.4 与 DIAGNOSTICS）：
+//   - 循环之外读被迭代写过的名字 ⇒ E1036（写入不逃逸，读到的是循环前的值）；
+//   - 迭代体内 break 或带值 return <v> ⇒ E1037（并发下结果不确定）；
+//     迭代体内 void `return;` 合法（不选值 ⇒ 结果确定）。
+
+@mode workflow
+
+function main(array<string> items) -> array<string> {
+    string scratch;
+    scratch = "";
+
+    let cleaned = parallel for (
+        item in items, concurrency: 4, on_error: terminate
+    ) {
+        // 迭代局部写：兄弟迭代看不见，循环之外也看不见。
+        scratch = item;
+        // 体内读 = 本迭代的值（读到兄弟迭代的写是不可能的）。
+        let current = scratch;
+        // 迭代出口：yield 按位置收集。
+        yield current;
+    };
+
+    return cleaned;
+}
