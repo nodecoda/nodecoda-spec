@@ -490,6 +490,9 @@ function main(string url) {
   不由表达式生产者的端口名推断（否则目标平台一旦要求键，契约就会被无声改名）。
   `return;`（void）合法：出口不携带结果绑定。
   **普通函数（辅助函数 / code 函数）不受此限**，`return x;` 照常。
+- **流程出口节点由 `return` 决定**：`return { … }` ⇒ 出口携带具名结果；`return;`
+  或流程没有任何 `return` ⇒ 目标平台仍会产生一个出口节点（零绑定），这属出口规则，
+  与 `output` 语句无关（`output` 只发布消息，不参与出口的形状）。
 - `return` 的作用域 = **当前函数 / 当前流程**，**循环不构成边界**：循环体内的 `return` 穿透循环（不是「只跳出循环」）；分支（`if` / `switch` / `parallel` 分支）内的 `return` 同样是流程返回；
 - 唯一例外：QA `action` / attempt 分支体内的 `return` 是该分支的**结果值**（subscope return，见 §5.8），不是流程返回；
 - `parallel for` 迭代体内的**带值** `return <v>` 例外地是**语言错**（E1037，见 §5.4）；void `return;` 合法；
@@ -509,10 +512,13 @@ return { $output: report.body };
 
 - **`output` 的位置不参与语义**：它是一条普通语句，不是「流程出口的另一种写法」。
   拒绝它的只有两类契约：workflow / advanced-chat 之外的模式，以及 `parallel` 分支内。
+- **`output` 与流程出口无关**：`output` 只对应平台的一次消息发射，**不决定出口节点**
+  （出口由 `return` 决定，见 §5.6）。流程没有任何 `return`、或只有 `output` 时，
+  目标平台仍需要一个出口节点 —— 那是出口规则的产物，与 `output` 语句无关。
 - **模板**：操作数是 `TEMPLATE_STRING` 时即为消息模板，插值位（`${...}`）在目标平台上
   落成该发射节点的**命名绑定**（绑定名由目标平台的物理端口决定，见 §1.6 的名字转义）。
-  平台侧「执行中的输出节点」与「终止时的输出端点」（coze-biz 的 `output` 节点与
-  `end` + `useAnswerContent`）是**同一个发射器的两种时刻**，都读成 / 写成 `output`。
+  上游事实（**读回**依据，不是 `output` 语句的目的地规则）：coze-biz 的终止答复端点
+  （`end` + `useAnswerContent`）在运行期是一次输出发射，因此它被读回成 `output(...)`。
 
 语义模型见 `NCODA-OUTPUT-MODEL.md`（ncoda 语义独立，平台投影不承诺全覆盖）。
 
