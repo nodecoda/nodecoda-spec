@@ -39,10 +39,17 @@
  *              parallel_for_stmt (2026-09-14, godcc — statement-level side-effect
  *                  parallel loop; the iteration-scope contract lives in
  *                  LANGUAGE-REFERENCE §5.4)
- *   quirks   : int(...) numeric cast is an implementation hack (godcc G13),
- *              NOT part of the grammar; `.type` field access and map key
- *              `timeout` are accepted by the parser as contextual words —
- *              see notes under postfix_expr and map_key.
+ *   added    : ?? null-coalescing operator (coalesce_expr), 2026-09-16 — was
+ *                  implementation-only (godcc); `int(...)` / `file(...)`
+ *                  contextual conversions (cast_expr) and the `$` identifier
+ *                  escape (ESCAPED_IDENTIFIER) land in the same change set:
+ *                  all three were carried by the implementation as undeclared
+ *                  quirks (godcc G13) and by raising output before that;
+ *              param_list / param / return_type_opt / KEYWORD — previously
+ *                  referenced but never defined in this file (grammar defect,
+ *                  2026-09-16); postfix member position widened from
+ *                  `( IDENTIFIER | "type" )` to any contextual word, because
+ *                  platform ports are named with reserved words.
  *)
 
 (* ── Terminals ──────────────────────────────────────────────────────────── *)
@@ -62,9 +69,20 @@
  *   INT_LITERAL         decimal digits
  *   FLOAT_LITERAL       digits "." digits
  *   IDENTIFIER          [_a-zA-Z][_a-zA-Z0-9]*
+ *   ESCAPED_IDENTIFIER  "$" IDENTIFIER — the same name written with a leading
+ *                       `$` escape (`$type` / `$file`), used when the spelled
+ *                       name collides with a reserved word or a type name. The
+ *                       leading `$` is not part of the name; `$` followed by
+ *                       anything other than a letter or `_` is a lexical
+ *                       error. The escape is a purely lexical rule and is
+ *                       accepted at every name position.
+ *   KEYWORD             any reserved word from the Keywords list above (type
+ *                       names included); legal only where the grammar accepts
+ *                       KEYWORD (member position after `.`, @answer binding
+ *                       names).
  *
  * Symbols:
- *   ( ) { } [ ] , : ; ? . -> | = == != < <= > >= && || ! + - * / %
+ *   ( ) { } [ ] , : ; ? ?? . -> | = == != < <= > >= && || ! + - * / %
  *   += -= *= /= <<
  *
  * Comments: // line comments; /* *\/ nested block comments.
@@ -95,6 +113,11 @@ field_list    = { type_ref IDENTIFIER ";" } ;
 enum_decl     = "enum" IDENTIFIER "{" enum_member_list trailing_comma_opt "}" semicolon_opt ;
 enum_member_list = IDENTIFIER { "," IDENTIFIER } ;
 
+param_list     = "(" [ param_seq ] ")" ;
+param_seq      = param { "," param } ;
+param          = type_ref IDENTIFIER [ "=" expression ] ;
+return_type_opt = [ "->" type_ref ] ;
+
 function_def      = "function" IDENTIFIER param_list return_type_opt block ;
 code_function_def = "code" IDENTIFIER param_list "->" type_ref block ;
 
@@ -104,7 +127,7 @@ agent_entry = (IDENTIFIER | STRING_LITERAL) ":" expression ;
 
 answer_decl = "@answer" (STRING_LITERAL | TEMPLATE_STRING)
               { word "=" IDENTIFIER { "." IDENTIFIER } } semicolon_opt ;
-word = IDENTIFIER | keyword ;  (* @answer binding names may be contextual keywords *)
+word = IDENTIFIER | KEYWORD ;  (* binding-name position: contextual words allowed *)
 
 (* ── Types ──────────────────────────────────────────────────────────────── *)
 
@@ -194,7 +217,10 @@ expr_or_assign_stmt = expression [ ( "=" | "+=" | "-=" | "*=" | "/=" | "<<" ) ex
 (* ── Expressions ────────────────────────────────────────────────────────── *)
 
 expression = ternary_expr ;
-ternary_expr = or_expr [ "?" expression ":" expression ] ;
+ternary_expr = coalesce_expr [ "?" expression ":" expression ] ;
+coalesce_expr = or_expr { "??" or_expr } ;
+              (* first non-null value selection; may not be mixed with || / &&
+                 in one unparenthesized expression (static restriction below) *)
 or_expr  = and_expr { "||" and_expr } ;
 and_expr = equality_expr { "&&" equality_expr } ;
 equality_expr = comparison_expr { ( "==" | "!=" ) comparison_expr } ;
@@ -204,7 +230,7 @@ multiply_expr = unary_expr { ( "*" | "/" | "%" ) unary_expr } ;
 unary_expr = ( "!" | "-" ) unary_expr | postfix_expr ;
 
 postfix_expr = primary_expr
-               { "." ( IDENTIFIER | "type" )
+               { "." ( IDENTIFIER | KEYWORD )
                | "[" expression "]"
                | "<" type_ref { "," type_ref } ">" "(" arg_list ")"
                | "(" arg_list ")" }
@@ -223,10 +249,19 @@ arg_seq  = expression { "," expression } ;
 primary_expr = INT_LITERAL | FLOAT_LITERAL | STRING_LITERAL | TEMPLATE_STRING
              | "true" | "false" | "null"
              | IDENTIFIER
+             | cast_expr
              | "(" expression ")"
              | array_literal | map_literal
              | for_expr | parallel_for_expr
              | foreign_code_expr | lambda_expr ;
+
+cast_expr = "int" "(" expression ")" | "file" "(" expression ")" ;
+              (* the only two builtin conversions spelled as a type keyword; the
+                 keyword reads as a callee only immediately before "(" (type
+                 positions never reach primary_expr, so no ambiguity).
+                 `int` = numeric conversion (string/float/int → int);
+                 `file` = string → file annotation. No other type keyword may
+                 be used as a callee. *)
 
 array_literal = "[" [ arg_seq ] "]" ;
 map_literal   = "{" [ map_entry { "," map_entry } [ "," ] ] "}" ;
@@ -317,6 +352,19 @@ semicolon_opt      = [ ";" ] ;
  *   unrepresentable nested shapes; structural outputs declare >= 2 unique
  *   fields; a direct output creates one physical port named result; a Code
  *   body contains exactly one source member.
+ * - ?? selects the first non-null operand and is lower-precedence than || / &&
+ *   and higher than the ternary. It may not be mixed with || or && in one
+ *   unparenthesized expression (`a || b ?? c`, `a ?? b && c` are syntax
+ *   errors; parenthesize to disambiguate). When the left operand's type is
+ *   statically non-optional the right operand is never taken (W2012).
+ * - == / != between different types are accepted with warning W2011 (real
+ *   platform workflows compare bool with string and stay runnable); the
+ *   ordering comparisons < <= > >= stay strict type errors.
+ * - int(...) and file(...) are the only conversions spelled as a type keyword
+ *   (cast_expr); every other type keyword is a plain type. int → float is an
+ *   implicit widening and needs no conversion.
+ * - A name colliding with a reserved word or a type name is written with the
+ *   `$` escape (ESCAPED_IDENTIFIER), e.g. `function main(file $file)`.
  * - Only explicit parallel and parallel-for introduce operation concurrency.
  * - Legal syntax is still subject to target capability classification; a
  *   REJECTED shape returns a diagnostic before WorkflowAST/YAML emission.

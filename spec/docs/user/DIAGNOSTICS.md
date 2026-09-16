@@ -87,7 +87,9 @@ Workflow Build 使用结构化诊断码报告错误和警告。诊断码是稳�
 - `E1043`：`for` / `parallel for` 值表达式的 yield 合约被破坏（正常路径缺 `yield`、`yield` 不在体末尾、或体内 `return`）。`break` / `continue` 在顺序 for 表达式体内合法（提前退出路径豁免）；
 - `E1051`：变量声明与已导入的平台命名空间重名（全局作用域遮蔽，限定调用将产生歧义）；
 - `E1052`：`import` 必须带平台限定符（如 `import "coze-biz.web_search";`），裸 import 或未知平台被拒绝；
-- `E1054`：`@mode advanced-chat` 入口首参必须命名为 `query`（会话输入）。
+- `E1054`：`@mode advanced-chat` 入口首参必须命名为 `query`（会话输入）；
+- `W2011`：`==` / `!=` 两侧类型不同（如 `bool == string`、record 与 string 不等）——**警告，不阻断编译**：真实平台工作流中该写法可运行且平台语义一致；顺序比较 `<` `<=` `>` `>=` 仍为严格类型错误；
+- `W2012`：`x ?? y` 的左操作数类型**静态非可空** ⇒ 右操作数永不被取用，结果为左值（右侧不参与结果类型约束）。
 
 ### 警告码
 
@@ -100,6 +102,8 @@ Workflow Build 使用结构化诊断码报告错误和警告。诊断码是稳�
 | <a id="w2005"></a> <!-- DOCFORG:FACT id=diagnostic.W2005 --> `W2005` | CODE_SOURCE_CONTRACT_UNVERIFIED | - |
 | <a id="w2006"></a> <!-- DOCFORG:FACT id=diagnostic.W2006 --> `W2006` | CODE_SOURCE_CONTRACT_MISMATCH | - |
 | <a id="w2010"></a> <!-- DOCFORG:FACT id=diagnostic.W2010 --> `W2010` | ANY_FIELD_ACCESS | - |
+| <a id="w2011"></a> <!-- DOCFORG:FACT id=diagnostic.W2011 --> `W2011` | CROSS_TYPE_EQUALITY | - |
+| <a id="w2012"></a> <!-- DOCFORG:FACT id=diagnostic.W2012 --> `W2012` | REDUNDANT_COALESCE | - |
 <!-- DOCFORG:END section=diagnostics-table -->
 
 ## 使用建议

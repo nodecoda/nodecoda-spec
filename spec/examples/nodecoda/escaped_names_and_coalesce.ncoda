@@ -1,0 +1,19 @@
+@language nodecoda/1
+// escaped_names_and_coalesce.ncoda
+// Surface forms landed 2026-09-16 (implementation-carried first, spec second):
+//   * ESCAPED_IDENTIFIER  — `$name` forces identifier interpretation when the
+//                           written name collides with a reserved word or a
+//                           type name (platform ports are named that way)
+//   * coalesce_expr       — `??` first-non-null value selection
+//   * cast_expr           — `int(...)` / `file(...)` contextual conversions
+//
+// Flow: Start ──→ Code ──→ End
+
+@mode workflow
+
+function main(string $type, string raw, string? maybe) -> string {
+    let upload = file(raw);
+    let count = int(raw);
+    let label = maybe ?? "unknown";
+    return $type + label + to_string(count);
+}

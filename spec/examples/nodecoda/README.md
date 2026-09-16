@@ -14,7 +14,7 @@
 | 03_conditional | IF→LLM | ✓ | ✓ | 可编译 |
 | 04_code | Code→LLM | ✓ | ✓ | 可编译 |
 | 05_http | HTTP→LLM | ✓ | ✓ | 可编译 |
-| 06_tool | Tool→LLM | ✓ | ✓ | 可编译 |
+| 06_tool | Tool→LLM | ✓ | — | 待改写：`tool()` 已移除（2026-09-16），插件调用改走 `import "<platform>.<provider>";` + `provider.operation(params)` |
 | 07_template | Template+Conditionals | ✓ | ✓ | 可编译 |
 | 08_parallel | Parallel { LLM, LLM } | ✓ | ✓ | Dify 1.16 / Graphon 0.6 普通 DAG fan-out/fan-in |
 | 09_iteration | FOR→LLM | ✓ | ✓ | plain ForStmt 生产启用 |
@@ -32,19 +32,22 @@
 | 63_switch_classifier | switch 多出口 LLM 分类 | ✓ | ✓ | case 标签顺序 = branch_0..N；default 可选；结果绑定 `-> r` 访问 classificationId/reason |
 | 64_subflow_decl | subflow 子工作流声明 + 调用 | ✓ | ✓ | 身份 = (workflowId, version)；dify 不支持（编译期诊断） |
 
+> **待改写（登记，未完成）**：`06_tool_use.ncoda`、`38_chatflow_time_tool.ncoda` 仍用已移除的 `tool(...)` 形态
+> ⇒ 需改写成 `import "<platform>.<provider>"` + `provider.operation(...)`；改写依赖该平台的 provider 绑定表，
+> 本平台（dify）当前无对应 provider 注册条目，故本轮只登记不改写。
+
 **已实现语义功能**：
 1. ✓ Start 输入映射为 `function main(...)` 的强类型参数
 2. ✓ `knowledge()` 内置函数
 3. ✓ 强类型 `foreign code python3(...) -> type { source ...; }` 表达式
 4. ✓ `http()` 内置函数
-5. ✓ `tool()` 内置函数
-6. ✓ `LLMResponse.text` 真实输出端口
-7. ✓ `HTTPResponse` 结构体（body, status_code, headers）
-8. ✓ 隔离 named/plain `parallel` lowering；生产 target 使用普通 DAG，不生成 synthetic 节点
-9. ✓ `extract<T>` schema-dependent operation，返回 `value`/`ok`/`reason`/`usage`
-10. ✓ `ask<Form, Action>` 挂起式人工输入（HITL）：表单字段 + 动作按钮 + 可选 timeout 分支
-11. ✓ `switch` 多出口 LLM 分类：case 标签顺序 = branch_0..N + default 兜底 + `-> r` 结果绑定
-12. ✓ `subflow` 子工作流顶层声明 + 调用（身份 = workflowId + version；dify 不支持）
+5. ✓ `LLMResponse.text` 真实输出端口
+6. ✓ `HTTPResponse` 结构体（body, status_code, headers）
+7. ✓ 隔离 named/plain `parallel` lowering；生产 target 使用普通 DAG，不生成 synthetic 节点
+8. ✓ `extract<T>` schema-dependent operation，返回 `value`/`ok`/`reason`/`usage`
+9. ✓ `ask<Form, Action>` 挂起式人工输入（HITL）：表单字段 + 动作按钮 + 可选 timeout 分支
+10. ✓ `switch` 多出口 LLM 分类：case 标签顺序 = branch_0..N + default 兜底 + `-> r` 结果绑定
+11. ✓ `subflow` 子工作流顶层声明 + 调用（身份 = workflowId + version；dify 不支持）
 
 ## 映射规则
 
@@ -59,11 +62,11 @@
 | `knowledge-retrieval` | `knowledge("dataset_ids", query, opts)` |
 | `code` | ``foreign code python3(type name = value) -> output-type { source `...`; }`` |
 | `http-request` | `http("method", url, opts)` |
-| `tool` | `tool("name", "action", params)` |
+| `tool` | 平台插件调用：`import "<platform>.<provider>";` 后用 `provider.operation(params)`（如 `import "coze-biz.datetime";` → `datetime.datetime({...})`）|
 | `template-transform` | 模板字符串 + 条件表达式 |
 | `variable-aggregator` | 仅用于互斥分支值合并 |
-| `answer` | advanced-chat 的 `answer(value)` |
-| `end` | workflow 的 `output("key", value)` 或 `return value` |
+| `answer` | advanced-chat 的 `@answer` 声明（最终答复文本 + 绑定）|
+| `end` | workflow 的 `return value`；中间消息用 `output(expr)` 语句 |
 
 ### 强类型 Code FFI
 

@@ -113,6 +113,21 @@ function main(string query) -> string {
 
 - 与 `@mode workflow` / `advanced-chat` 互斥。
 
+### 1.6 标识符与 `$` 转义
+
+标识符为 `[_a-zA-Z][_a-zA-Z0-9]*`，**不得**与保留字或类型名冲突。当名字本身就是保留字/类型名（平台端口确实会叫 `output`、`file`、`type`）时，用 `$` 转义把它写成标识符：
+
+```ncoda
+function main(file $file) -> string {
+    return $file;
+}
+```
+
+- `$` 只出现在标识符**开头**，不属于名字本身（`$file` 的名字是 `file`）；
+- `$` 之后必须是字母或 `_`（`$1` = 词法错误 E1000）；
+- 这是**词法层**规则，在所有名字位置一致（参数、局部变量、绑定名、`@answer` 绑定、表达式引用）；
+- 反编译器输出的名字与平台真名逐一对应，撞保留字时就是用这条转义表达的。
+
 ---
 
 ## 2. 类型系统
@@ -286,12 +301,41 @@ let nested = data["key"].field;
 | 2 | `-` (一元) `!` |
 | 3 | `*` `/` `%` |
 | 4 | `+` `-` |
-| 5 | `<` `<=` `>` `>=` |
+| 5 | `<` `<=` `>` `>=` `in` |
 | 6 | `==` `!=` |
 | 7 | `&&` |
 | 8 | `||` |
-| 9 | `?:` (三元) |
-| 10 | `=` `+=` `-=` `*=` `/=` `<<` |
+| 9 | `??` (空值合并，混用受限) |
+| 10 | `?:` (三元) |
+| 11 | `=` `+=` `-=` `*=` `/=` `<<` |
+
+### 4.9 显式转换 `int(...)` 与 `file(...)`
+
+语言只有两个转换的拼写是**类型关键字**（其余类型关键字只能出现在类型位置）：
+
+```ncoda
+let n = int("42");        // string / float / int → int
+let upload = file(url);   // string → file 标注（编译期零开销，只做类型标注）
+```
+
+- 类型关键字仅当**紧跟 `(`** 时读作函数名（类型位置不经过表达式主部，故无歧义）；
+- 除这两个以外没有别的关键字转换：`float(s)` / `bool(s)` = 语法错误；
+- `int` → `float` 是**隐式**提升，不需要转换；
+- 语法产生式见 `cast_expr`。
+
+### 4.10 空值合并 `??`
+
+`a ?? b` = 取**第一个非 null 值**：`a` 非 null 取 `a`，否则取 `b`。
+
+```ncoda
+let name = input ?? "匿名";
+let port = config.port ?? 8080;
+```
+
+- 优先级：低于 `||` / `&&`，高于三目 `?:`（§4.8）；
+- **不得**与 `||` / `&&` 在同一表达式内不套括号混用：`a || b ?? c`、`a ?? b && c` = 语法错误，须写成 `(a || b) ?? c`；
+- 左操作数类型**静态非可空** ⇒ 右操作数永不被取用，给警告 **W2012**；
+- `??` 是**值选择**（first-not-null）；判断空值请用 `empty(x)`。
 
 ---
 
@@ -796,6 +840,11 @@ let city = extracted.value.city;
 | answer 语句 | `answer(...)` 语句已移除（2026-08-23，语义并入 `output`）；`@answer` 声明保留 |
 | import 平台限定 | `import` 必须带平台限定符（如 `"coze-biz.web_search"`）；裸 import 或未知平台 = E1052 |
 | chatflow 入口 | `@mode advanced-chat` 入口首参必须命名为 `query`（E1054） |
+| `??` 混用限制 | `??` 不得与 `||` / `&&` 在同一表达式内不套括号混用（语法错误） |
+| `??` 冗余 | `x ?? y` 左操作数静态非可空 ⇒ 右操作数永不被取用（W2012） |
+| 跨类型相等 | `==` / `!=` 类型不同 = 警告（W2011），不阻断编译；顺序比较保持严格类型错误 |
+| 转换拼写 | 只有 `int(...)` / `file(...)` 用类型关键字作转换名（`cast_expr`），其余类型关键字不得作函数名 |
+| 名字转义 | 与保留字 / 类型名冲突的名字用 `$` 转义书写（词法层规则，全位置一致） |
 | 能力约束 | 合法语法仍受目标能力分类约束（REJECTED 形式返回诊断） |
 
 ---
@@ -977,5 +1026,9 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=type.optional --> `type.optional` | `optional` | NodeCoda type category OPTIONAL |
 | <!-- DOCFORG:FACT id=type.record --> `type.record` | `record` | NodeCoda type category RECORD |
 | <!-- DOCFORG:FACT id=type.string --> `type.string` | `string` | NodeCoda type category STRING |
+| <!-- DOCFORG:FACT id=syntax.cast.expression --> `syntax.cast.expression` | `cast_expr` | 类型关键字转换 `int(...)` / `file(...)` |
+| <!-- DOCFORG:FACT id=syntax.coalesce.expression --> `syntax.coalesce.expression` | `coalesce_expr` | `??` 空值合并（first-not-null） |
+| <!-- DOCFORG:FACT id=syntax.agent.entry --> `syntax.agent.entry` | `agent_entry` | @agent 配置条目 |
+| <!-- DOCFORG:FACT id=syntax.word --> `syntax.word` | `word` | 名字位置：`IDENTIFIER | KEYWORD`（成员名 / 绑定名） |
 | <!-- DOCFORG:FACT id=type.void --> `type.void` | `void` | NodeCoda type category VOID |
 <!-- DOCFORG:END section=language-facts -->
