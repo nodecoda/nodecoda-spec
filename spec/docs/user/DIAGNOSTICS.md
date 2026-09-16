@@ -41,7 +41,6 @@ Workflow Build 使用结构化诊断码报告错误和警告。诊断码是稳�
 | <a id="e1014"></a> <!-- DOCFORG:FACT id=diagnostic.E1014 --> `E1014` | FIELD_NOT_FOUND | - |
 | <a id="e1015"></a> <!-- DOCFORG:FACT id=diagnostic.E1015 --> `E1015` | UNKNOWN_TYPE | - |
 | <a id="e1016"></a> <!-- DOCFORG:FACT id=diagnostic.E1016 --> `E1016` | NOT_IN_LOOP | - |
-| <a id="e1017"></a> <!-- DOCFORG:FACT id=diagnostic.E1017 --> `E1017` | OUTPUT_KEY_TYPE | - |
 | <a id="e1018"></a> <!-- DOCFORG:FACT id=diagnostic.E1018 --> `E1018` | ASSIGN_IMMUTABLE | - |
 | <a id="e1019"></a> <!-- DOCFORG:FACT id=diagnostic.E1019 --> `E1019` | INVALID_MODE | - |
 | <a id="e1020"></a> <!-- DOCFORG:FACT id=diagnostic.E1020 --> `E1020` | ENTRY_NO_RETURN | - |

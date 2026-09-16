@@ -4,22 +4,22 @@
   "stdlib_api_version": "v1",
   "target_profile": "dify-1.16-graphon-0.6",
   "docs_snapshot": "sha256:52c0ae01786a52fe2ace6b8885b318cf3b61ab473d1f7d7078caa39fc39896cb",
-  "facts_count": 330,
+  "facts_count": 341,
   "examples_count": 70,
   "generated_at": "2026-08-31T00:00:00Z",
   "doc_hashes": {
-    "BEST-PRACTICES.md": "e5e61fbc3c68b877",
-    "CONCEPTS.md": "b33d103abc24f9f7",
+    "BEST-PRACTICES.md": "7ffde7de353a8a57",
+    "CONCEPTS.md": "13992ca8f5db1033",
     "COOKBOOK.md": "33cfa48cdb6c211f",
-    "DIAGNOSTICS.md": "6236280168691825",
+    "DIAGNOSTICS.md": "4f652844e6ede681",
     "GETTING-STARTED.md": "aa62eeddfc47b0bc",
-    "LANGUAGE-REFERENCE.md": "a68902a3d18ce3d5",
+    "LANGUAGE-REFERENCE.md": "e6d52e20e5f51ac7",
     "MIGRATION.md": "14434ea39c6cbf4f",
     "README.md": "95a60be71fe2b23d",
     "STDLIB-REFERENCE.md": "ee907472f42af911",
     "TARGET-COMPATIBILITY.md": "05ad721715309b1a",
     "TROUBLESHOOTING.md": "6f869203ccf1f7c2",
     "UNSUPPORTED-SEMANTICS.md": "1d8cc6a0a0534cd5",
-    "WORKFLOW-PATTERNS.md": "78671355c8d437ca"
+    "WORKFLOW-PATTERNS.md": "d0aa71141341f909"
   }
 }

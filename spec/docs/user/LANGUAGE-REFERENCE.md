@@ -32,7 +32,7 @@
 ```
 
 - `workflow`：标准工作流模式
-- `advanced-chat`：高级对话模式，支持 `@conversation` 声明和 `@answer` 最终答复声明
+- `advanced-chat`：高级对话模式，支持 `@conversation` 声明
 - `agent`：智能体应用模式，配合 `@agent` 块声明（见 1.5），编译为最小图 `start → agent → end`
 
 ### 1.2 对话声明（仅 advanced-chat）
@@ -50,9 +50,8 @@
 - 会话变量是可变的，可在工作流中重新赋值，从而在轮次之间累积状态；
 - 单轮（`workflow`）模式没有会话持久化，不能使用 `@conversation` 声明。
 
-多轮执行时，每一轮用户输入都会进入同一个工作流实例，`output` 语句向响应流发布
-中间消息，`@answer` 声明提供当轮最终答复；会话变量则负责区分轮次间的持久状态
-与当轮输入。轮次相关语义详见工作流模式文档。
+多轮执行时，每一轮用户输入都会进入同一个工作流实例，`output` 语句向响应流发布消息
+（非终止）；会话变量则负责区分轮次间的持久状态与当轮输入。轮次相关语义详见工作流模式文档。
 
 ### 1.3 顶层声明
 
@@ -125,7 +124,7 @@ function main(file $file) -> string {
 
 - `$` 只出现在标识符**开头**，不属于名字本身（`$file` 的名字是 `file`）；
 - `$` 之后必须是字母或 `_`（`$1` = 词法错误 E1000）；
-- 这是**词法层**规则，在所有名字位置一致（参数、局部变量、绑定名、`@answer` 绑定、表达式引用）；
+- 这是**词法层**规则，在**所有名字位置**一致（声明名、参数、记录字段与字面量键、局部变量、`yield` 口名、表达式引用）；
 - 反编译器输出的名字与平台真名逐一对应，撞保留字时就是用这条转义表达的。
 
 ---
@@ -472,27 +471,48 @@ attempt risky_operation() as result {
 ```ncoda
 function compute(int x) -> int {
     if (x < 0) {
-        return 0;
+        return 0;            // 普通函数：带值 return 直接就是函数的返回值
     }
     return x * 2;
 }
+
+function main(string url) {
+    let report = http("GET", url);
+    // 流程出口：带值 return 必须具名 —— 键 = 工作流的输出契约键
+    return { $output: report.body, $status: report.status_code };
+}
 ```
 
+- **流程出口的命名规则（仅 `main` / 流程出口）**：带值 `return` 必须**具名** —— 形态是
+  `return { name: value, ... }`（map / record 字面量），或 **record 类型表达式**
+  （糖展开：`return r;` ≡ `return { f: r.f, ... }`，键 = 该 record 的字段名）。
+  **标量表达式 `return x;` 在流程出口是语言错**：出口键是工作流对外输出契约，
+  不由表达式生产者的端口名推断（否则目标平台一旦要求键，契约就会被无声改名）。
+  `return;`（void）合法：出口不携带结果绑定。
+  **普通函数（辅助函数 / code 函数）不受此限**，`return x;` 照常。
 - `return` 的作用域 = **当前函数 / 当前流程**，**循环不构成边界**：循环体内的 `return` 穿透循环（不是「只跳出循环」）；分支（`if` / `switch` / `parallel` 分支）内的 `return` 同样是流程返回；
 - 唯一例外：QA `action` / attempt 分支体内的 `return` 是该分支的**结果值**（subscope return，见 §5.8），不是流程返回；
 - `parallel for` 迭代体内的**带值** `return <v>` 例外地是**语言错**（E1037，见 §5.4）；void `return;` 合法；
 - 若当前 Build Target 尚未实现某形态的 lowering，返回目标能力诊断（E1034，可约未实现，非语言错）。
 
-### 5.7 output 语句（中间消息）
+### 5.7 output 语句（消息）
 
-向响应流发布一条**中间消息**（进度/安抚/事件），流程继续、非终止。可在 `main`
-中任意位置多次出现，按序发布：
+向响应流发布一条**消息**（进度/安抚/事件），流程继续、非终止。可在 `main`
+中任意位置多次出现（容器内、分支臂内均可），按序发布：
 
 ```ncoda
 output("正在生成报告，预计 1-3 分钟…");
 output(progress_text);
-return final_value;
+output(`草稿 id：${report.body}`);
+return { $output: report.body };
 ```
+
+- **`output` 的位置不参与语义**：它是一条普通语句，不是「流程出口的另一种写法」。
+  拒绝它的只有两类契约：workflow / advanced-chat 之外的模式，以及 `parallel` 分支内。
+- **模板**：操作数是 `TEMPLATE_STRING` 时即为消息模板，插值位（`${...}`）在目标平台上
+  落成该发射节点的**命名绑定**（绑定名由目标平台的物理端口决定，见 §1.6 的名字转义）。
+  平台侧「执行中的输出节点」与「终止时的输出端点」（coze-biz 的 `output` 节点与
+  `end` + `useAnswerContent`）是**同一个发射器的两种时刻**，都读成 / 写成 `output`。
 
 语义模型见 `NCODA-OUTPUT-MODEL.md`（ncoda 语义独立，平台投影不承诺全覆盖）。
 
@@ -836,8 +856,9 @@ let city = extracted.value.city;
 | parallel for 迭代局部 | `parallel for` 迭代体内对循环外变量的写 = 迭代局部、不逃逸（死写合法）；循环之外读该名字 = E1036（读到的是循环前的值） |
 | parallel for 控制转移 | 迭代体内 `yield` / `continue` 迭代局部（合法）；`break` 与带值 `return <v>` = E1037（并发下结果不确定）；void `return;` 合法（不选值 ⇒ 结果确定） |
 | let 不可变 | `let` 绑定后不可重新赋值 |
-| output 上下文 | `output(expr)` 发布中间消息，非终止；`@mode agent` 下 main 仅允许 agent 入口语义（`run(...)`） |
-| answer 语句 | `answer(...)` 语句已移除（2026-08-23，语义并入 `output`）；`@answer` 声明保留 |
+| output 上下文 | `output(expr)` 发布消息，非终止；**位置不参与语义**（可在任意块 / 分支臂，容器内合法；`parallel` 分支内与 workflow/advanced-chat main 之外 = 语言错）；`@mode agent` 下 main 仅允许 agent 入口语义（`run(...)`） |
+| return 出口命名（仅流程出口） | `main` 的带值 `return` 必须**具名**：`return { name: value, ... }`，或 record 类型表达式（糖展开为字段名）；标量表达式 `return x;` 是语言错（出口键是工作流输出契约，不由表达式生产者端口推断）。普通函数（辅助函数 / code 函数）的 `return <v>` 不受此限 |
+| answer 构造 | `answer(...)` 语句已移除（2026-08-23）、`@answer` 声明已移除（2026-09-16）；两者的消息语义并入 `output` |
 | import 平台限定 | `import` 必须带平台限定符（如 `"coze-biz.web_search"`）；裸 import 或未知平台 = E1052 |
 | chatflow 入口 | `@mode advanced-chat` 入口首参必须命名为 `query`（E1054） |
 | `??` 混用限制 | `??` 不得与 `||` / `&&` 在同一表达式内不套括号混用（语法错误） |
@@ -861,7 +882,6 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.add.expression --> `syntax.add.expression` | `add_expr` | Grammar production add_expr |
 | <!-- DOCFORG:FACT id=syntax.agent.application --> `syntax.agent.application` | `agent_application` | @mode agent + @agent 块声明 |
 | <!-- DOCFORG:FACT id=syntax.agent.block --> `syntax.agent.block` | `agent_block` | @agent 配置块（model/instruction/strategy/max_iteration/memory/memory_window/tools/knowledge） |
-| <!-- DOCFORG:FACT id=syntax.answer.declaration --> `syntax.answer.declaration` | `answer_decl` | @answer 最终答复文本模板（terminal；区别于已移除的 answer 语句） |
 | <!-- DOCFORG:FACT id=syntax.and.expression --> `syntax.and.expression` | `and_expr` | Grammar production and_expr |
 | <!-- DOCFORG:FACT id=syntax.arg.list --> `syntax.arg.list` | `arg_list` | Grammar production arg_list |
 | <!-- DOCFORG:FACT id=syntax.arg.sequence --> `syntax.arg.sequence` | `arg_seq` | Grammar production arg_seq |
@@ -947,7 +967,7 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.keyword.limit --> `syntax.keyword.limit` | `limit` | Reserved keyword limit |
 | <!-- DOCFORG:FACT id=syntax.keyword.map --> `syntax.keyword.map` | `map` | Reserved keyword map |
 | <!-- DOCFORG:FACT id=syntax.keyword.null --> `syntax.keyword.null` | `null` | Reserved keyword null |
-| <!-- DOCFORG:FACT id=syntax.keyword.output --> `syntax.keyword.output` | `output` | Reserved keyword output（`answer` 保留字已移除，`@answer` 仍为指令） |
+| <!-- DOCFORG:FACT id=syntax.keyword.output --> `syntax.keyword.output` | `output` | Reserved keyword output（`answer` 保留字与 `@answer` 指令均已移除） |
 | <!-- DOCFORG:FACT id=syntax.keyword.parallel --> `syntax.keyword.parallel` | `parallel` | Reserved keyword parallel |
 | <!-- DOCFORG:FACT id=syntax.keyword.request_input --> `syntax.keyword.request_input` | `request_input` | Reserved keyword request_input |
 | <!-- DOCFORG:FACT id=syntax.keyword.retry --> `syntax.keyword.retry` | `retry` | Reserved keyword retry |

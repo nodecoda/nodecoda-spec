@@ -296,12 +296,11 @@ output(progress_text);
 // 最终结构化结果
 return final_value;
 
-// 最终答复文本（terminal，至多一个）
-@answer "{{final}} 已生成" final=final_value;
+output(`已生成：${final_value}`);
 ```
 
-`output` 发布中间消息（非终止）；`return` 返回结构化结果；`@answer` 声明最终答复文本。
-`answer(...)` 语句已移除（2026-08-23），其中间投递语义并入 `output`。
+`output` 发布消息（非终止）；`return` 返回结构化结果。`answer(...)` 语句已移除（2026-08-23），
+`@answer` 声明已移除（2026-09-16）：`answer` 语义在平台侧就是一次输出发射，由 `output` 承载。
 
 ---
 

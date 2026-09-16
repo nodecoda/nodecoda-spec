@@ -27,13 +27,21 @@
  *              datasource(...) reserved operation (target-specific)
  *              answer_stmt + reserved token answer (2026-08-23; its
  *                  intermediate-publish semantics folded into output(expr);
- *                  @answer decl retained — semantics:
- *                  docs/NCODA-OUTPUT-MODEL.md)
+ *                  its @answer decl successor was itself removed 2026-09-16 —
+ *                  see the W1 ledger entry below)
  *              output(key, value) key form (single-value output(expr))
+ *              answer_decl (@answer) + the KEYWORD binding-name position and
+ *                  the `word` production — 2026-09-16 (W1 ruling D4): `answer`
+ *                  is a Dify-era construct; on the platform the useAnswerContent
+ *                  exit endpoint IS an OutputEmitter (the same runtime object an
+ *                  output node is), so `output` alone carries message
+ *                  semantics. Ruling record (godcc):
+ *                  docs/five-step/spec/W1-output-return.md
  *   added    : import_decl (LANGUAGE-REFERENCE §1.3, godcc import)
  *              agent_application / agent_block (§1.5, godcc @agent)
- *              answer_decl (@answer final-answer template; the final-response
- *                           text line, distinct from the removed answer_stmt)
+ *              answer_decl (@answer final-answer template, distinct from the
+ *                           removed answer_stmt) — REMOVED 2026-09-16 (W1 D4;
+ *                           see the removal entry below)
  *              @language / @mode declarations (already in §11 facts)
  *   added    : ask_stmt / switch_stmt / subflow_decl (2026-08-31, godcc ask/switch/subflow)
  *              parallel_for_stmt (2026-09-14, godcc — statement-level side-effect
@@ -50,6 +58,14 @@
  *                  2026-09-16); postfix member position widened from
  *                  `( IDENTIFIER | "type" )` to any contextual word, because
  *                  platform ports are named with reserved words.
+ *   added    : name / member_name (2026-09-16, W1 ruling D1) — ONE rule for
+ *                  every name position: `name = IDENTIFIER |
+ *                  ESCAPED_IDENTIFIER` (the `$` escape was documented as legal
+ *                  at every name position, but the productions still spelled
+ *                  plain IDENTIFIER, so the rule was unenforceable);
+ *                  `member_name = name | KEYWORD` applies only where the
+ *                  OUTSIDE world owns the name (postfix `.` member, `yield`
+ *                  port). ESCAPED_IDENTIFIER also becomes a primary_expr.
  *)
 
 (* ── Terminals ──────────────────────────────────────────────────────────── *)
@@ -61,7 +77,7 @@
  *   (aliases: request_input -> ask, intent -> switch — both still reserved)
  *   true false null
  *   string int float bool file void map array any object
- *   @language @mode @conversation @agent @answer
+ *   @language @mode @conversation @agent
  *
  * Literals:
  *   STRING_LITERAL      "..." or '...' with escapes
@@ -78,8 +94,9 @@
  *                       accepted at every name position.
  *   KEYWORD             any reserved word from the Keywords list above (type
  *                       names included); legal only where the grammar accepts
- *                       KEYWORD (member position after `.`, @answer binding
- *                       names).
+ *                       KEYWORD — i.e. `member_name` (member position after
+ *                       `.` and the `yield` port name), where the spelling is
+ *                       owned by the target platform, not by the author.
  *
  * Symbols:
  *   ( ) { } [ ] , : ; ? ?? . -> | = == != < <= > >= && || ! + - * / %
@@ -89,6 +106,19 @@
  * Whitespace is insignificant; statements are terminated by ';' or a block.
  *)
 
+(* ── Names (one rule for every name position) ───────────────────────────── *)
+
+name        = IDENTIFIER | ESCAPED_IDENTIFIER ;
+              (* Author-chosen names. `$` spells a name that collides with a
+                 reserved word or a type name; the `$` is not part of the name
+                 (`$type` == "type"). Legal at EVERY name position:
+                 declaration names, parameters, record fields and literal keys,
+                 local names, expression references. *)
+member_name = name | KEYWORD ;
+              (* Target-owned names: postfix member after `.`, `yield` port.
+                 Reserved words are legal here because the spelling comes from
+                 the platform (physical port / field names). *)
+
 (* ── Program structure ──────────────────────────────────────────────────── *)
 
 program = language_decl_opt mode_decl_opt conversation_decl_list top_level_list ;
@@ -97,37 +127,33 @@ language_decl_opt = [ "@language" IDENTIFIER semicolon_opt ] ;
 mode_decl_opt     = [ "@mode" IDENTIFIER semicolon_opt ] ;
 
 conversation_decl_list = { conversation_decl } ;
-conversation_decl = "@conversation" type_ref IDENTIFIER [ "=" expression ] ";" ;
+conversation_decl = "@conversation" type_ref name [ "=" expression ] ";" ;
 
 top_level_list = { top_level_decl semicolon_opt } ;
 top_level_decl = const_decl | type_decl | enum_decl | import_decl | subflow_decl
                | code_function_def | function_def
-               | agent_application | answer_decl ;
+               | agent_application ;
 
 import_decl   = "import" STRING_LITERAL ";" ;
-const_decl    = "const" IDENTIFIER "=" const_value ";" ;
+const_decl    = "const" name "=" const_value ";" ;
 const_value   = STRING_LITERAL | TEMPLATE_STRING | INT_LITERAL | FLOAT_LITERAL
               | "true" | "false" | "null" ;
-type_decl     = "type" IDENTIFIER "=" "{" field_list "}" semicolon_opt ;
-field_list    = { type_ref IDENTIFIER ";" } ;
-enum_decl     = "enum" IDENTIFIER "{" enum_member_list trailing_comma_opt "}" semicolon_opt ;
-enum_member_list = IDENTIFIER { "," IDENTIFIER } ;
+type_decl     = "type" name "=" "{" field_list "}" semicolon_opt ;
+field_list    = { type_ref name ";" } ;
+enum_decl     = "enum" name "{" enum_member_list trailing_comma_opt "}" semicolon_opt ;
+enum_member_list = name { "," name } ;
 
 param_list     = "(" [ param_seq ] ")" ;
 param_seq      = param { "," param } ;
-param          = type_ref IDENTIFIER [ "=" expression ] ;
+param          = type_ref name [ "=" expression ] ;
 return_type_opt = [ "->" type_ref ] ;
 
-function_def      = "function" IDENTIFIER param_list return_type_opt block ;
-code_function_def = "code" IDENTIFIER param_list "->" type_ref block ;
+function_def      = "function" name param_list return_type_opt block ;
+code_function_def = "code" name param_list "->" type_ref block ;
 
 agent_application = "@agent" agent_block ;
 agent_block = "{" [ agent_entry { "," agent_entry } [ "," ] ] "}" ;
-agent_entry = (IDENTIFIER | STRING_LITERAL) ":" expression ;
-
-answer_decl = "@answer" (STRING_LITERAL | TEMPLATE_STRING)
-              { word "=" IDENTIFIER { "." IDENTIFIER } } semicolon_opt ;
-word = IDENTIFIER | KEYWORD ;  (* binding-name position: contextual words allowed *)
+agent_entry = (name | STRING_LITERAL) ":" expression ;
 
 (* ── Types ──────────────────────────────────────────────────────────────── *)
 
@@ -164,14 +190,14 @@ if_stmt        = "if" "(" expression ")" block else_clause_opt ;
 else_clause_opt = [ "else" ( block | if_stmt ) ] ;
 
 for_stmt = "for" "(" for_var "in" expression ")" block ;
-for_var  = IDENTIFIER | "var" IDENTIFIER | "let" IDENTIFIER | type_ref IDENTIFIER ;
+for_var  = name | "var" name | "let" name | type_ref name ;
 
 while_stmt = "while" "(" expression ")" "limit" INT_LITERAL block ;
 
 return_stmt = "return" [ expression ] ";" ;
-yield_stmt  = "yield" [ expression ] ";" ;
+yield_stmt  = "yield" [ member_name "=" ] [ expression ] ";" ;
 
-parallel_stmt = "parallel" "{" { [ IDENTIFIER ":" ] block } "}" ;
+parallel_stmt = "parallel" "{" { [ name ":" ] block } "}" ;
 
 parallel_for_stmt = "parallel" "for" "(" for_var "in" expression
                     "," "concurrency" ":" INT_LITERAL
@@ -180,21 +206,21 @@ parallel_for_stmt = "parallel" "for" "(" for_var "in" expression
                        迭代体作用域契约（迭代局部写 / 逃逸读 E1036 / 控制转移
                        E1037）见 LANGUAGE-REFERENCE §5.4。*)
 
-attempt_stmt = "attempt" expression "as" IDENTIFIER
-               "{" "success" block "failure" "(" IDENTIFIER ")" block "}" ;
+attempt_stmt = "attempt" expression "as" name
+               "{" "success" block "failure" "(" name ")" block "}" ;
 
 ask_stmt = "ask" "<" type_ref "," type_ref ">"
-          "(" map_literal ")" "as" IDENTIFIER
+          "(" map_literal ")" "as" name
           "{" { "action" expression block } [ "timeout" block ] "}" ;
           (* "request_input" 保留为兼容别名（godcc KW_REQUEST_INPUT 双关键字）。 *)
 
 switch_stmt = "switch" "(" expression [ "," map_literal ] ")"
-              [ "->" IDENTIFIER ]
+              [ "->" name ]
               "{" { STRING_LITERAL ":" block } [ "default" ":" block ] "}" ;
               (* 多出口 LLM 分类：case 标签 = 分类类别（顺序 = branch_0..N）；
                  "intent" 保留为废弃别名（godcc KW_INTENT）。*)
 
-subflow_decl = "subflow" IDENTIFIER "="
+subflow_decl = "subflow" name "="
                "(" STRING_LITERAL "," STRING_LITERAL ")"
                "{" subflow_contract_list "}" ;
 subflow_contract_list = { subflow_contract [ "," ] } ;
@@ -205,8 +231,8 @@ subflow_contract = ( "input" | "output" ) ":" "{" field_list "}" ;
 break_stmt    = "break" ";" ;
 continue_stmt = "continue" ";" ;
 
-typed_var_decl = type_ref IDENTIFIER [ "=" expression ] ";" ;
-var_decl       = ( "var" | "let" ) IDENTIFIER [ "=" expression ] ";" ;
+typed_var_decl = type_ref name [ "=" expression ] ";" ;
+var_decl       = ( "var" | "let" ) name [ "=" expression ] ";" ;
 
 output_stmt = "output" "(" expression ")" ";" ;  (* intermediate message *)
               (* emitted to the response stream; non-terminating *)
@@ -230,7 +256,7 @@ multiply_expr = unary_expr { ( "*" | "/" | "%" ) unary_expr } ;
 unary_expr = ( "!" | "-" ) unary_expr | postfix_expr ;
 
 postfix_expr = primary_expr
-               { "." ( IDENTIFIER | KEYWORD )
+               { "." member_name
                | "[" expression "]"
                | "<" type_ref { "," type_ref } ">" "(" arg_list ")"
                | "(" arg_list ")" }
@@ -248,7 +274,7 @@ arg_seq  = expression { "," expression } ;
 
 primary_expr = INT_LITERAL | FLOAT_LITERAL | STRING_LITERAL | TEMPLATE_STRING
              | "true" | "false" | "null"
-             | IDENTIFIER
+             | name
              | cast_expr
              | "(" expression ")"
              | array_literal | map_literal
@@ -274,22 +300,22 @@ parallel_for_expr = "parallel" "for" "(" for_var "in" expression
                     "," "on_error" ":" IDENTIFIER ")" yield_block ;
 yield_block = "{" stmt_list yield_stmt stmt_list "}" ;  (* grammar guarantees >= 1 yield *)
 
-lambda_expr = "(" [ IDENTIFIER { "," IDENTIFIER } ] ")" "->" expression ;
+lambda_expr = "(" [ name { "," name } ] ")" "->" expression ;
 
 foreign_code_expr = "foreign" "code" code_language
                     "(" code_inputs_opt ")" "->" code_output_contract
                     "{" code_source "}" ;
-code_language = IDENTIFIER | STRING_LITERAL ;   (* normalized to python3 *)
+code_language = name | STRING_LITERAL ;   (* normalized to python3 *)
 
 code_inputs_opt = [ code_input_seq trailing_comma_opt ] ;
 code_input_seq  = code_input { "," code_input } ;
-code_input      = code_type_ref IDENTIFIER "=" expression ;
+code_input      = code_type_ref name "=" expression ;
 
 code_output_contract = code_direct_output | code_structural_output ;
 code_direct_output   = code_type_ref ;
 code_structural_output = "{" code_output_field code_output_field code_output_field_tail "}" ;
 code_output_field_tail = { code_output_field } ;
-code_output_field = IDENTIFIER ":" code_type_ref ";" ;
+code_output_field = name ":" code_type_ref ";" ;
 
 code_source = "source" TEMPLATE_STRING ";" ;
 code_type_ref = type_ref ;
@@ -337,10 +363,24 @@ semicolon_opt      = [ ";" ] ;
  *   particular operand/store shape can be lowered is a target-capability
  *   question and never introduces assigner/node-version syntax.
  * - output(expr) publishes one intermediate message to the response stream
- *   (non-terminating; model docs/NCODA-OUTPUT-MODEL.md). return is a
- *   function exit and the structured result; @answer declares the final
- *   response text (terminal). answer(...) statement is REMOVED: its
- *   intermediate-publish semantics folded into output.
+ *   (non-terminating; model docs/NCODA-OUTPUT-MODEL.md). It is an ordinary
+ *   statement: its POSITION is not part of its semantics (legal in any block
+ *   or branch arm; rejected outside workflow/advanced-chat main and inside a
+ *   parallel branch). A TEMPLATE_STRING operand is the message template and
+ *   its interpolations become the target's named bindings.
+ *   return is the function/workflow exit and the structured result.
+ *   answer(...) statement is REMOVED (2026-08-23) and the @answer declaration
+ *   is REMOVED (2026-09-16, W1 D4): the platform's useAnswerContent exit
+ *   endpoint is an OutputEmitter — the same runtime object an output node is —
+ *   so `output` alone carries the message semantics.
+ * - return may be void (`return;`: the exit carries no result binding) or
+ *   carry a value, and a carried value must be NAMED: either a map/record
+ *   literal (`return { name: value, ... }`) or a record-typed expression whose
+ *   exit names are that record's field names (sugar: `return r;` ==
+ *   `return { f: r.f, ... }`). A scalar expression (`return u;`) is an error:
+ *   the exit key is the workflow's output contract, so it is never inferred
+ *   from the expression's producer port — a target that needs a key would
+ *   otherwise silently rename the contract.
  * - attempt and postfix operation policies apply only to manifest-declared
  *   workflow operations that expose the required physical Dify fields/handles.
  * - Call type arguments are accepted only by schema-dependent operations

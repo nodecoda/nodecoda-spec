@@ -65,8 +65,8 @@
 | `tool` | 平台插件调用：`import "<platform>.<provider>";` 后用 `provider.operation(params)`（如 `import "coze-biz.datetime";` → `datetime.datetime({...})`）|
 | `template-transform` | 模板字符串 + 条件表达式 |
 | `variable-aggregator` | 仅用于互斥分支值合并 |
-| `answer` | advanced-chat 的 `@answer` 声明（最终答复文本 + 绑定）|
-| `end` | workflow 的 `return value`；中间消息用 `output(expr)` 语句 |
+| `end` | 流程出口：`return { name: value, ... }`（出口键 = 工作流输出契约）；report 用 `output(expr)` 语句 |
+| `answer` | 已移除（2026-08-23 语句 / 2026-09-16 声明）：答复语义在平台上就是一次 `output` 发射 |
 
 ### 强类型 Code FFI
 
