@@ -65,7 +65,7 @@
 | `tool` | 平台插件调用：`import "<platform>.<provider>";` 后用 `provider.operation(params)`（如 `import "coze-biz.datetime";` → `datetime.datetime({...})`）|
 | `template-transform` | 模板字符串 + 条件表达式 |
 | `variable-aggregator` | 仅用于互斥分支值合并 |
-| `end` | 流程出口：`return { name: value, ... }`（出口键 = 工作流输出契约）；无带值出口时为 `return;` |
+| `end` | 流程出口 = 一组具名输出：无名出口（`return x;`）键 = 语言常量 `output`；record 值逐字段具名（键 = 字段名）；也可显式 `return { name: value, ... }`；无带值出口时为 `return;` |
 | `output` | 发布一条消息（非终止）：`output(expr)`；与流程出口无关 |
 | `answer` | 已移除（2026-08-23 语句 / 2026-09-16 声明）：答复语义在运行期就是一次输出发射 |
 

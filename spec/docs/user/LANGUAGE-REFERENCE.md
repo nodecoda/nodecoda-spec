@@ -478,18 +478,22 @@ function compute(int x) -> int {
 
 function main(string url) {
     let report = http("GET", url);
-    // 流程出口：带值 return 必须具名 —— 键 = 工作流的输出契约键
-    return { $output: report.body, $status: report.status_code };
+    return report.body;      // 无名出口：糖形 ≡ return { $output: report.body };
+    // 需要多个对外键时显式具名：
+    // return { $output: report.body, $status: report.status_code };
 }
 ```
 
-- **流程出口的命名规则（仅 `main` / 流程出口）**：带值 `return` 必须**具名** —— 形态是
-  `return { name: value, ... }`（map / record 字面量），或 **record 类型表达式**
-  （糖展开：`return r;` ≡ `return { f: r.f, ... }`，键 = 该 record 的字段名）。
-  **标量表达式 `return x;` 在流程出口是语言错**：出口键是工作流对外输出契约，
-  不由表达式生产者的端口名推断（否则目标平台一旦要求键，契约就会被无声改名）。
+- **流程出口 = 一组具名输出**（目标平台的出口就是一张 name → value 表），因此
+  `main` 的带值 `return <e>;` 的**键按值的类型定**：
+  - `e` 的类型是 record 且其字段**承载口可枚举** ⇒ **逐字段具名**：
+    `return r;` ≡ `return { f1: r.f1, ... }`（键 = **语言字段名**）；
+  - 否则 ⇒ **一个输出**，键 = 语言常量 `output`：`return x;` ≡ `return { $output: x };`。
+  **键不由表达式生产者的物理端口名推断** —— 出口键是工作流对外输出契约，不是实现的
+  投影（否则目标平台换个端口名就会无声改掉对外契约）。
+  作者也可**显式具名**（`return { name: value, ... }`），键逐字保留。
   `return;`（void）合法：出口不携带结果绑定。
-  **普通函数（辅助函数 / code 函数）不受此限**，`return x;` 照常。
+  **普通函数（辅助函数 / code 函数）没有出口表语义**，`return x;` 就是该函数的返回值。
 - **流程出口节点由 `return` 决定**：`return { … }` ⇒ 出口携带具名结果；`return;`
   或流程没有任何 `return` ⇒ 目标平台仍会产生一个出口节点（零绑定），这属出口规则，
   与 `output` 语句无关（`output` 只发布消息，不参与出口的形状）。
@@ -863,7 +867,7 @@ let city = extracted.value.city;
 | parallel for 控制转移 | 迭代体内 `yield` / `continue` 迭代局部（合法）；`break` 与带值 `return <v>` = E1037（并发下结果不确定）；void `return;` 合法（不选值 ⇒ 结果确定） |
 | let 不可变 | `let` 绑定后不可重新赋值 |
 | output 上下文 | `output(expr)` 发布消息，非终止；**位置不参与语义**（可在任意块 / 分支臂，容器内合法；`parallel` 分支内与 workflow/advanced-chat main 之外 = 语言错）；`@mode agent` 下 main 仅允许 agent 入口语义（`run(...)`） |
-| return 出口命名（仅流程出口） | `main` 的带值 `return` 必须**具名**：`return { name: value, ... }`，或 record 类型表达式（糖展开为字段名）；标量表达式 `return x;` 是语言错（出口键是工作流输出契约，不由表达式生产者端口推断）。普通函数（辅助函数 / code 函数）的 `return <v>` 不受此限 |
+| return 出口命名（仅流程出口） | `main` 的带值 `return <e>;` = 一组具名输出：`e` 是 record 且字段承载口可枚举 ⇒ 逐字段具名（键 = 语言字段名）；否则 ⇒ 单输出，键 = 语言常量 `output`（`return x;` ≡ `return { $output: x };`）；键不由生产者物理端口名推断。作者可显式具名；普通函数的 `return <v>` 无出口表语义 |
 | answer 构造 | `answer(...)` 语句已移除（2026-08-23）、`@answer` 声明已移除（2026-09-16）；两者的消息语义并入 `output` |
 | import 平台限定 | `import` 必须带平台限定符（如 `"coze-biz.web_search"`）；裸 import 或未知平台 = E1052 |
 | chatflow 入口 | `@mode advanced-chat` 入口首参必须命名为 `query`（E1054） |
