@@ -76,6 +76,7 @@ Workflow Build 使用结构化诊断码报告错误和警告。诊断码是稳�
 | <a id="e1051"></a> <!-- DOCFORG:FACT id=diagnostic.E1051 --> `E1051` | SHADOWED_NAMESPACE | - |
 | <a id="e1052"></a> <!-- DOCFORG:FACT id=diagnostic.E1052 --> `E1052` | IMPORT_PLATFORM_REQUIRED | - |
 | <a id="e1054"></a> <!-- DOCFORG:FACT id=diagnostic.E1054 --> `E1054` | CHATFLOW_ENTRY | - |
+| <a id="e1056"></a> <!-- DOCFORG:FACT id=diagnostic.E1056 --> `E1056` | RECORD_FIELD_REQUIRED | - |
 | <a id="e1099"></a> <!-- DOCFORG:FACT id=diagnostic.E1099 --> `E1099` | LOWERING_INVARIANT | - |
 
 新增码语义：
@@ -87,6 +88,7 @@ Workflow Build 使用结构化诊断码报告错误和警告。诊断码是稳�
 - `E1051`：变量声明与已导入的平台命名空间重名（全局作用域遮蔽，限定调用将产生歧义）；
 - `E1052`：`import` 必须带平台限定符（如 `import "coze-biz.web_search";`），裸 import 或未知平台被拒绝；
 - `E1054`：`@mode advanced-chat` 入口首参必须命名为 `query`（会话输入）；
+- `E1056`：**多端口 record 值的整值引用**出现在没有承载形式的位置 —— `http(...)`（`body` / `status_code` / `headers`）、插件（声明式字段口）、结构性 `foreign code`（诸声明口）的值由**一组字段口** 承载，平台画布上**没有**「整个 record」那个端口。合法位置只有两个：① **流程出口**（`return v;`，出口逐字段具名）、② **容器的产出绑定**（`yield v;` —— 容器的 `node_outputs` 有承载整节点的绑定口）；其余位置（模板槽 `\`${v}\``、标量实参、比较操作数、`output(v)` …）必须写明字段（`v.body`）；
 - `W2011`：`==` / `!=` 两侧类型不同（如 `bool == string`、record 与 string 不等）——**警告，不阻断编译**：真实平台工作流中该写法可运行且平台语义一致；顺序比较 `<` `<=` `>` `>=` 仍为严格类型错误；
 - `W2012`：`x ?? y` 的左操作数类型**静态非可空** ⇒ 右操作数永不被取用，结果为左值（右侧不参与结果类型约束）。
 
