@@ -77,6 +77,10 @@ Workflow Build 使用结构化诊断码报告错误和警告。诊断码是稳�
 | <a id="e1052"></a> <!-- DOCFORG:FACT id=diagnostic.E1052 --> `E1052` | IMPORT_PLATFORM_REQUIRED | - |
 | <a id="e1054"></a> <!-- DOCFORG:FACT id=diagnostic.E1054 --> `E1054` | CHATFLOW_ENTRY | - |
 | <a id="e1056"></a> <!-- DOCFORG:FACT id=diagnostic.E1056 --> `E1056` | RECORD_FIELD_REQUIRED | - |
+| <a id="e1057"></a> <!-- DOCFORG:FACT id=diagnostic.E1057 --> `E1057` | TEMPLATE_RETURN_PLACEMENT | - |
+| <a id="e1058"></a> <!-- DOCFORG:FACT id=diagnostic.E1058 --> `E1058` | TEMPLATE_RETURN_MIXED | - |
+| <a id="e1059"></a> <!-- DOCFORG:FACT id=diagnostic.E1059 --> `E1059` | TEMPLATE_RETURN_IDENTITY | - |
+| <a id="e1060"></a> <!-- DOCFORG:FACT id=diagnostic.E1060 --> `E1060` | TEMPLATE_BINDING_INVALID | - |
 | <a id="e1099"></a> <!-- DOCFORG:FACT id=diagnostic.E1099 --> `E1099` | LOWERING_INVARIANT | - |
 
 新增码语义：
@@ -89,6 +93,10 @@ Workflow Build 使用结构化诊断码报告错误和警告。诊断码是稳�
 - `E1052`：`import` 必须带平台限定符（如 `import "coze-biz.web_search";`），裸 import 或未知平台被拒绝；
 - `E1054`：`@mode advanced-chat` 入口首参必须命名为 `query`（会话输入）；
 - `E1056`：**多端口 record 值的整值引用**出现在没有承载形式的位置 —— `http(...)`（`body` / `status_code` / `headers`）、插件（声明式字段口）、结构性 `foreign code`（诸声明口）的值由**一组字段口** 承载，平台画布上**没有**「整个 record」那个端口。合法位置只有两个：① **流程出口**（`return v;`，出口逐字段具名）、② **容器的产出绑定**（`yield v;` —— 容器的 `node_outputs` 有承载整节点的绑定口）；其余位置（模板槽 `\`${v}\``、标量实参、比较操作数、`output(v)` …）必须写明字段（`v.body`）；
+- `E1057`（语言错）：`return template` 出现在**不是流程出口**的位置——循环体内（循环里的 `return` 是把值带出循环）、子函数内（子函数的 `return` 是值回流给调用点）、QA `action` / `attempt` 臂内（那是分支结果值）。三处共用一条判据与一个码，改法 = 把模板返回挪到流程出口（顶层，或 `if` / `switch` / `parallel` 臂内）。示例：`for (x in xs) { return template "…"; }`；
+- `E1058`（语言错）：同一流程里 `return template`（答复模板）与 `return <值>`（具名变量出口）**共存**——目标平台的流程出口通道二选一（`terminatePlan`），两者混用没有可承载的产物形状；void `return;` 可与模板返回共存。示例：`if (ok) { return template "…"; } else { return v; }`；
+- `E1059`（语言错）：同一流程的多个 `return template` **身份不一致**（模板文本或有序名额表不同）——目标只有一个答复端点、值侧只有一个身份，两个不同身份无法同时承载。示例：`if (a) { return template "A"; } else { return template "B"; }`（把两处改成逐字一致即可）；
+- `E1060`（语言错）：`return template … using { 名额: 值 }` 的**名额值不是值路径**（`IDENT(.IDENT)*`）——目标名额只承载 `input.value: {path, ref_node}`（一个生产者端口），调用 / 拼接 / 字面量 / 下标都没有可映射的形状。示例：`return template "…" using { output: f(x) };`；
 - `W2011`：`==` / `!=` 两侧类型不同（如 `bool == string`、record 与 string 不等）——**警告，不阻断编译**：真实平台工作流中该写法可运行且平台语义一致；顺序比较 `<` `<=` `>` `>=` 仍为严格类型错误；
 - `W2012`：`x ?? y` 的左操作数类型**静态非可空** ⇒ 右操作数永不被取用，结果为左值（右侧不参与结果类型约束）。
 

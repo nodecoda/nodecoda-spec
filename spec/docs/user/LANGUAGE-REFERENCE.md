@@ -495,6 +495,31 @@ function main(string url) {
   `return;`（void）合法：出口不携带结果绑定。
   **普通函数（辅助函数 / code 函数）没有出口表语义**，`return x;` 就是该函数的返回值。
 - **整值引用（record 值的位置规则）**：产出方的值由**一组字段口**承载时（`http(...)` = `body` / `status_code` / `headers`；插件 = 声明式字段口；结构性 `foreign code` = 诸声明口），平台画布上**没有**「整个 record」那个端口 ⇒ 这种值的**整值引用只有两个合法位置**：① **流程出口**（`return v;`，出口把整值逐字段具名，见上条）；② **容器的产出绑定**（`yield v;` —— 容器有承载整节点的产出绑定口）。其余位置引用整值 = 语言错 `E1056`，作者必须写明字段（`v.body`）。产出方**有单一承载口**时（`llm(...)` 的信封口、`text` / `knowledge` / 子流程的单口…）处处可整值引用。
+- **模板返回（答复端点，W2）**：`return template "<逐字模板>" [using { 名额名: 值路径, ... }];`
+  是流程出口的**第三种形态**（另外两种 = 无值 `return;`、带值 `return <e>;`）：它不选变量值，
+  直接给出答复端点的**逐字模板 + 有序名额表**。规则：
+  - **模板槽 = 字符串字面量**，不是表达式（`return template v;` / `template "a" + "b"` /
+    反引号插值串都不是该形态）；
+  - **零解析**：模板文本逐字承载（`{{a.b}}` / `{{img[0]}}` 是平台运行期的模板语言，不是 ncoda
+    表达式）—— 编译器不读模板字符串、不校验占位符、不拿模板反推名额；「模板里出现名额表没有的
+    名字」「名额表里有模板没引用的名字」都不是编译期问题；
+  - **名额表逐条承载**：源序 = 目标 `node_inputs` 序，不去重、不筛选；名额名 = **平台的名字**
+    （wire `node_inputs[].name`）⇒ **允许保留字**（平台端口常用 `output`），与 `.` 后成员名、
+    `yield` 口名属同一类「名字位拼写来自外部」；
+  - **名额值 = 值路径** `IDENT(.IDENT)*`（目标名额只承载一个生产者端口引用）；其余表达式形态是 `E1060`；
+  - `using` 可省（没有名额的模板）；**`template` 标记不可省** —— 它是与「值出口」的判别标记
+    （`return template "x";` 与 `return "x";` 是两条不同的出口通道）；
+  - **位置**：只在流程出口位置合法（顶层，或 `if` / `switch` / `parallel` 臂内）；循环体内、
+    子函数内、QA `action` / `attempt` 臂内 = `E1057`；
+  - **不与 `return <值>` 共存**（`E1058`；void `return;` 可共存）；同一流程的多个模板返回必须
+    **同身份**（模板文本 + 有序名额表逐字相同，`E1059`），同身份则合成**一个**答复端点。
+
+  ```ncoda
+  // ① 纯文本答复（零名额）② 逐个名额（名额名 = 平台 wire 名，模板逐字承载）
+  return template "结果输出到了填入的多维表格中，表格左侧会增加一个数据表，点进去查看";
+  return template "![]({{image[0]}})" using { output: v1.body, image: v2.images };
+  ```
+
 - **流程出口节点由 `return` 决定**：`return { … }` ⇒ 出口携带具名结果；`return;`
   或流程没有任何 `return` ⇒ 目标平台仍会产生一个出口节点（零绑定），这属出口规则，
   与 `output` 语句无关（`output` 只发布消息，不参与出口的形状）。
@@ -901,7 +926,6 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.arg.list --> `syntax.arg.list` | `arg_list` | Grammar production arg_list |
 | <!-- DOCFORG:FACT id=syntax.arg.sequence --> `syntax.arg.sequence` | `arg_seq` | Grammar production arg_seq |
 | <!-- DOCFORG:FACT id=syntax.array.literal --> `syntax.array.literal` | `array_literal` | Grammar production array_literal |
-| <!-- DOCFORG:FACT id=syntax.array.suffix.sequence --> `syntax.array.suffix.sequence` | `array_suffix_seq` | Grammar production array_suffix_seq |
 | <!-- DOCFORG:FACT id=syntax.attempt.statement --> `syntax.attempt.statement` | `attempt_stmt` | Grammar production attempt_stmt |
 | <!-- DOCFORG:FACT id=syntax.switch.statement --> `syntax.switch.statement` | `switch_stmt` | Grammar production switch_stmt |
 | <!-- DOCFORG:FACT id=syntax.subflow.declaration --> `syntax.subflow.declaration` | `subflow_decl` | Grammar production subflow_decl |
@@ -927,7 +951,6 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.continue.statement --> `syntax.continue.statement` | `continue_stmt` | Grammar production continue_stmt |
 | <!-- DOCFORG:FACT id=syntax.conversation.declaration --> `syntax.conversation.declaration` | `conversation_decl` | Grammar production conversation_decl |
 | <!-- DOCFORG:FACT id=syntax.conversation.declaration.list --> `syntax.conversation.declaration.list` | `conversation_decl_list` | Grammar production conversation_decl_list |
-| <!-- DOCFORG:FACT id=syntax.conversation.default.optional --> `syntax.conversation.default.optional` | `conversation_default_opt` | Grammar production conversation_default_opt |
 | <!-- DOCFORG:FACT id=syntax.duration --> `syntax.duration` | `duration` | Grammar production duration |
 | <!-- DOCFORG:FACT id=syntax.else.clause.optional --> `syntax.else.clause.optional` | `else_clause_opt` | Grammar production else_clause_opt |
 | <!-- DOCFORG:FACT id=syntax.enum.declaration --> `syntax.enum.declaration` | `enum_decl` | Grammar production enum_decl |
@@ -937,19 +960,14 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.expression.or.assign.statement --> `syntax.expression.or.assign.statement` | `expr_or_assign_stmt` | Grammar production expr_or_assign_stmt |
 | <!-- DOCFORG:FACT id=syntax.field.list --> `syntax.field.list` | `field_list` | Grammar production field_list |
 | <!-- DOCFORG:FACT id=syntax.file.extension.list --> `syntax.file.extension.list` | `file_extension_list` | Grammar production file_extension_list |
-| <!-- DOCFORG:FACT id=syntax.file.extension.optional --> `syntax.file.extension.optional` | `file_extension_opt` | Grammar production file_extension_opt |
 | <!-- DOCFORG:FACT id=syntax.file.type.list --> `syntax.file.type.list` | `file_type_list` | Grammar production file_type_list |
 | <!-- DOCFORG:FACT id=syntax.file.type.ref --> `syntax.file.type.ref` | `file_type_ref` | Grammar production file_type_ref |
 | <!-- DOCFORG:FACT id=syntax.file.upload.list --> `syntax.file.upload.list` | `file_upload_list` | Grammar production file_upload_list |
-| <!-- DOCFORG:FACT id=syntax.file.upload.optional --> `syntax.file.upload.optional` | `file_upload_opt` | Grammar production file_upload_opt |
 | <!-- DOCFORG:FACT id=syntax.for.expression --> `syntax.for.expression` | `for_expr` | Grammar production for_expr |
 | <!-- DOCFORG:FACT id=syntax.for.statement --> `syntax.for.statement` | `for_stmt` | Grammar production for_stmt |
 | <!-- DOCFORG:FACT id=syntax.for.var --> `syntax.for.var` | `for_var` | Grammar production for_var |
 | <!-- DOCFORG:FACT id=syntax.foreign.code.expression --> `syntax.foreign.code.expression` | `foreign_code_expr` | Grammar production foreign_code_expr |
 | <!-- DOCFORG:FACT id=syntax.function --> `syntax.function` | `function_def` | Grammar production function_def |
-| <!-- DOCFORG:FACT id=syntax.human.action --> `syntax.human.action` | `human_action` | Grammar production human_action |
-| <!-- DOCFORG:FACT id=syntax.human.action.list --> `syntax.human.action.list` | `human_action_list` | Grammar production human_action_list |
-| <!-- DOCFORG:FACT id=syntax.human.timeout.branch --> `syntax.human.timeout.branch` | `human_timeout_branch` | Grammar production human_timeout_branch |
 | <!-- DOCFORG:FACT id=syntax.if.statement --> `syntax.if.statement` | `if_stmt` | Grammar production if_stmt |
 | <!-- DOCFORG:FACT id=syntax.import.declaration --> `syntax.import.declaration` | `import_decl` | 顶层 import "provider"; 平台提供商绑定 |
 | <!-- DOCFORG:FACT id=syntax.keyword.action --> `syntax.keyword.action` | `action` | Reserved keyword action |
@@ -1002,22 +1020,16 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.keyword.with --> `syntax.keyword.with` | `with` | Reserved keyword with |
 | <!-- DOCFORG:FACT id=syntax.keyword.yield --> `syntax.keyword.yield` | `yield` | Reserved keyword yield |
 | <!-- DOCFORG:FACT id=syntax.lambda.expression --> `syntax.lambda.expression` | `lambda_expr` | Grammar production lambda_expr |
-| <!-- DOCFORG:FACT id=syntax.lambda.params.optional --> `syntax.lambda.params.optional` | `lambda_params_opt` | Grammar production lambda_params_opt |
 | <!-- DOCFORG:FACT id=syntax.language.declaration.optional --> `syntax.language.declaration.optional` | `language_decl_opt` | Grammar production language_decl_opt |
 | <!-- DOCFORG:FACT id=syntax.map.entry --> `syntax.map.entry` | `map_entry` | Grammar production map_entry |
-| <!-- DOCFORG:FACT id=syntax.map.entry.sequence --> `syntax.map.entry.sequence` | `map_entry_seq` | Grammar production map_entry_seq |
 | <!-- DOCFORG:FACT id=syntax.map.key --> `syntax.map.key` | `map_key` | Grammar production map_key |
 | <!-- DOCFORG:FACT id=syntax.map.literal --> `syntax.map.literal` | `map_literal` | Grammar production map_literal |
 | <!-- DOCFORG:FACT id=syntax.mode.declaration.optional --> `syntax.mode.declaration.optional` | `mode_decl_opt` | Grammar production mode_decl_opt |
 | <!-- DOCFORG:FACT id=syntax.multiply.expression --> `syntax.multiply.expression` | `multiply_expr` | Grammar production multiply_expr |
-| <!-- DOCFORG:FACT id=syntax.named.parallel.branches --> `syntax.named.parallel.branches` | `named_parallel_branches` | Grammar production named_parallel_branches |
 | <!-- DOCFORG:FACT id=syntax.operation.policies --> `syntax.operation.policies` | `operation_policies` | Grammar production operation_policies |
 | <!-- DOCFORG:FACT id=syntax.operation.policy --> `syntax.operation.policy` | `operation_policy` | Grammar production operation_policy |
-| <!-- DOCFORG:FACT id=syntax.optional.suffix --> `syntax.optional.suffix` | `optional_suffix` | Grammar production optional_suffix |
 | <!-- DOCFORG:FACT id=syntax.or.expression --> `syntax.or.expression` | `or_expr` | Grammar production or_expr |
 | <!-- DOCFORG:FACT id=syntax.output.statement --> `syntax.output.statement` | `output_stmt` | 中间消息发布（单值 `output(expr)`，非终止；模型 docs/NCODA-OUTPUT-MODEL.md） |
-| <!-- DOCFORG:FACT id=syntax.parallel.branches --> `syntax.parallel.branches` | `parallel_branches` | Grammar production parallel_branches |
-| <!-- DOCFORG:FACT id=syntax.parallel.expression --> `syntax.parallel.expression` | `parallel_expr` | 值表达式形态仅限 parallel for；`let x = parallel {...}` 已删除 |
 | <!-- DOCFORG:FACT id=syntax.parallel.for.expression --> `syntax.parallel.for.expression` | `parallel_for_expr` | Grammar production parallel_for_expr |
 | <!-- DOCFORG:FACT id=syntax.parallel.for.statement --> `syntax.parallel.for.statement` | `parallel_for_stmt` | 语句形态副作用并发循环（体为普通 block，无 yield） |
 | <!-- DOCFORG:FACT id=syntax.parallel.statement --> `syntax.parallel.statement` | `parallel_stmt` | Grammar production parallel_stmt |
@@ -1041,7 +1053,6 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.type.atom --> `syntax.type.atom` | `type_atom` | Grammar production type_atom |
 | <!-- DOCFORG:FACT id=syntax.type.declaration --> `syntax.type.declaration` | `type_decl` | Grammar production type_decl |
 | <!-- DOCFORG:FACT id=syntax.type.ref --> `syntax.type.ref` | `type_ref` | Grammar production type_ref |
-| <!-- DOCFORG:FACT id=syntax.type.ref.list --> `syntax.type.ref.list` | `type_ref_list` | Grammar production type_ref_list |
 | <!-- DOCFORG:FACT id=syntax.typed.var.declaration --> `syntax.typed.var.declaration` | `typed_var_decl` | Grammar production typed_var_decl |
 | <!-- DOCFORG:FACT id=syntax.unary.expression --> `syntax.unary.expression` | `unary_expr` | Grammar production unary_expr |
 | <!-- DOCFORG:FACT id=syntax.var.declaration --> `syntax.var.declaration` | `var_decl` | Grammar production var_decl |
@@ -1064,6 +1075,11 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.cast.expression --> `syntax.cast.expression` | `cast_expr` | 类型关键字转换 `int(...)` / `file(...)` |
 | <!-- DOCFORG:FACT id=syntax.coalesce.expression --> `syntax.coalesce.expression` | `coalesce_expr` | `??` 空值合并（first-not-null） |
 | <!-- DOCFORG:FACT id=syntax.agent.entry --> `syntax.agent.entry` | `agent_entry` | @agent 配置条目 |
-| <!-- DOCFORG:FACT id=syntax.word --> `syntax.word` | `word` | 名字位置：`IDENTIFIER | KEYWORD`（成员名 / 绑定名） |
+| <!-- DOCFORG:FACT id=syntax.name --> `syntax.name` | `name` | 名字位（作者名）：`IDENTIFIER` 或 `$` 转义标识符 —— 每个名字位一条规则（W1 D1） |
+| <!-- DOCFORG:FACT id=syntax.member.name --> `syntax.member.name` | `member_name` | 目标平台拥有的名字位（`.` 后成员 / `yield` 口名 / `template` 名额名）：`name` 或保留字 |
+| <!-- DOCFORG:FACT id=syntax.template.return --> `syntax.template.return` | `template_return` | 流程答复端点（`terminatePlan: useAnswerContent`）：逐字模板 + 有序名额表（W2） |
+| <!-- DOCFORG:FACT id=syntax.template.binding.list --> `syntax.template.binding.list` | `template_binding_list` | 模板返回的有序名额表（源序 = 平台 `node_inputs` 序，不去重不筛选） |
+| <!-- DOCFORG:FACT id=syntax.template.binding --> `syntax.template.binding` | `template_binding` | 名额表条目：名额名（平台 wire 名，允许保留字）到值路径 |
+| <!-- DOCFORG:FACT id=syntax.value.path --> `syntax.value.path` | `value_path` | 值路径（一个生产者端口引用；名额值必须是它） |
 | <!-- DOCFORG:FACT id=type.void --> `type.void` | `void` | NodeCoda type category VOID |
 <!-- DOCFORG:END section=language-facts -->

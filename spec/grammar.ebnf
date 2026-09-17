@@ -70,6 +70,18 @@
  *                  `member_name = name | KEYWORD` applies only where the
  *                  OUTSIDE world owns the name (postfix `.` member, `yield`
  *                  port). ESCAPED_IDENTIFIER also becomes a primary_expr.
+ *   added    : template_return / template_binding_list / template_binding /
+ *                  value_path (2026-09-17, W2, user ruling) — the flow's
+ *                  ANSWER endpoint construct: `return template "<verbatim>"
+ *                  [ using { slot: path, ... } ];`. The template operand is a
+ *                  STRING_LITERAL (the target wire slot carries literals only:
+ *                  63/63 answer endpoints, 265/265 output nodes) and is
+ *                  carried VERBATIM with zero compiler parsing; slot names are
+ *                  TARGET names (wire `node_inputs[].name`), so they use
+ *                  member_name and reserved words are legal there; slot values
+ *                  are value paths. `template` / `using` are CONTEXTUAL words,
+ *                  not reserved. Ruling record (godcc):
+ *                  docs/five-step/spec/W2-template-return.md
  *)
 
 (* ── Terminals ──────────────────────────────────────────────────────────── *)
@@ -99,8 +111,9 @@
  *   KEYWORD             any reserved word from the Keywords list above (type
  *                       names included); legal only where the grammar accepts
  *                       KEYWORD — i.e. `member_name` (member position after
- *                       `.` and the `yield` port name), where the spelling is
- *                       owned by the target platform, not by the author.
+ *                       `.`, the `yield` port name, the `template` binding
+ *                       slot name), where the spelling is owned by the target
+ *                       platform, not by the author.
  *
  * Symbols:
  *   ( ) { } [ ] , : ; ? ?? . -> | = == != < <= > >= && || ! + - * / %
@@ -108,6 +121,11 @@
  *
  * Comments: // line comments; /* *\/ nested block comments.
  * Whitespace is insignificant; statements are terminated by ';' or a block.
+ * Contextual words (NOT reserved: they stay ordinary identifiers and read as a
+ * marker only in a fixed position): template / using, recognised only as
+ * `return` + `template` + STRING_LITERAL (see template_return). `template` is
+ * therefore still a legal variable name, and `return template;` still returns
+ * it.
  *)
 
 (* ── Names (one rule for every name position) ───────────────────────────── *)
@@ -119,9 +137,10 @@ name        = IDENTIFIER | ESCAPED_IDENTIFIER ;
                  declaration names, parameters, record fields and literal keys,
                  local names, expression references. *)
 member_name = name | KEYWORD ;
-              (* Target-owned names: postfix member after `.`, `yield` port.
-                 Reserved words are legal here because the spelling comes from
-                 the platform (physical port / field names). *)
+              (* Target-owned names: postfix member after `.`, `yield` port,
+                 `template` binding slot name. Reserved words are legal here
+                 because the spelling comes from the platform (physical port /
+                 field names). *)
 
 (* ── Program structure ──────────────────────────────────────────────────── *)
 
@@ -199,6 +218,34 @@ for_var  = name | "var" name | "let" name | type_ref name ;
 while_stmt = "while" "(" expression ")" "limit" INT_LITERAL block ;
 
 return_stmt = "return" [ expression ] ";" ;
+              (* the other return shape is template_return below. *)
+
+template_return = "return" "template" STRING_LITERAL
+                  [ "using" template_binding_list ] ";" ;
+              (* flow ANSWER endpoint (target `terminatePlan:
+                 useAnswerContent`). The template operand is a STRING_LITERAL
+                 and is carried VERBATIM: the compiler does not read it
+                 (`{{a.b}}` / `{{img[0]}}` are the target's runtime template
+                 language, not ncoda expressions) and never relates its
+                 placeholders to the binding names. `template` is a CONTEXTUAL
+                 word — the marker is recognised only as `return` + `template`
+                 + STRING_LITERAL, so `return template;` still returns the
+                 variable named `template`. `using` is optional (no named
+                 slots); `template` is not — it is the marker that separates
+                 this exit from the value exit. *)
+template_binding_list = "{" [ template_binding { "," template_binding } [ "," ] ] "}" ;
+template_binding = member_name ":" value_path ;
+              (* Ordered slot table: source order == the target's
+                 `node_inputs` order, carried verbatim (never reordered,
+                 de-duplicated or filtered). The slot name is the TARGET's name
+                 (wire `node_inputs[].name`), so a reserved word is legal — a
+                 platform port is commonly named `output`. Duplicate slot names
+                 are rejected (E1000). *)
+value_path = name { "." member_name } ;
+              (* slot values are value paths (exactly one producer port); the
+                 target slot carries `input.value: {path, ref_node}`, so any
+                 other expression shape is E1060. *)
+
 yield_stmt  = "yield" [ member_name "=" ] [ expression ] ";" ;
 
 parallel_stmt = "parallel" "{" { [ name ":" ] block } "}" ;
@@ -392,6 +439,27 @@ semicolon_opt      = [ ";" ] ;
  *   the exit key is the workflow's output contract, so it is never inferred
  *   from the expression's producer port — a target that needs a key would
  *   otherwise silently rename the contract.
+ * - `return template "<verbatim>" [using { slot: path, ... }];`
+ *   (template_return) is the flow ANSWER endpoint; it is the third return
+ *   shape next to the void exit and the value exit, and it selects no
+ *   variable value (the answer text is the template, the named slots are that
+ *   endpoint's bindings). Its restrictions:
+ *     · the template operand is a literal and is carried verbatim: the
+ *       compiler never parses the template text, never relates placeholders
+ *       to slot names, and never reports a mismatch between them;
+ *     · slot values are value paths (E1060 otherwise); slot names are
+ *       target names and are carried verbatim in source order;
+ *     · a template return is legal only at a FLOW EXIT position — the flow's
+ *       top level, or inside an if / switch / parallel arm. Inside a loop
+ *       body, inside a subfunction, or inside a QA action / attempt arm it is
+ *       E1057 (none of those is the flow exit);
+ *     · a flow may not mix `return template` with `return <value>` (E1058):
+ *       the endpoint has one channel and the value exit is a different one.
+ *       A void `return;` may coexist with it;
+ *     · every template return of one flow must have the SAME identity —
+ *       identical template text and identical ordered slot table (same names,
+ *       same values) — because the target has exactly one answer node: any
+ *       difference is E1059. Identical ones synthesise ONE answer endpoint.
  * - attempt and postfix operation policies apply only to manifest-declared
  *   workflow operations that expose the required physical Dify fields/handles.
  * - Call type arguments are accepted only by schema-dependent operations
