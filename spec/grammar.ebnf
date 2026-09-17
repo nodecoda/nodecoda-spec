@@ -370,9 +370,16 @@ semicolon_opt      = [ ";" ] ;
  *   its interpolations become the target's named bindings.
  *   return is the function/workflow exit and the structured result.
  *   answer(...) statement is REMOVED (2026-08-23) and the @answer declaration
- *   is REMOVED (2026-09-16, W1 D4): the platform's useAnswerContent exit
- *   endpoint is an OutputEmitter — the same runtime object an output node is —
- *   so `output` alone carries the message semantics.
+ *   is REMOVED (2026-09-16, W1 D4). The platform's useAnswerContent exit
+ *   endpoint IS an OutputEmitter at runtime (the same object an output node is),
+ *   but that is a PLATFORM fact, not a licence to carry that endpoint with the
+ *   output construct: the endpoint decides the flow's ANSWER VALUE and is
+ *   carried by `return template ...` (W2 §4, W1 D6), while `output` is the
+ *   intermediate-message statement and has NO value relation to the exit node.
+ * - output never contributes to the workflow exit value: the exit is decided by
+ *   `return` alone (W1 D6, 2026-09-17). A flow whose only statement is
+ *   `output(...)` exits with no result binding, and the exit node's bindings
+ *   never reference an output node.
  * - return may be void (`return;`: the exit carries no result binding) or
  *   carry a value, and a carried value must be NAMED: either a map/record
  *   literal (`return { name: value, ... }`) or a record-typed expression whose
