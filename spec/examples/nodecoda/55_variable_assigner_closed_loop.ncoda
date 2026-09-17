@@ -7,12 +7,12 @@
 @conversation string greeting = "hello";
 @conversation array<string> history = [];
 
-function main(string user_input) {
+function main(string query) {
     // set 操作：字面量值 ✅
     greeting = "welcome";
     
     // append 操作：引用节点输出 ✅
-    history << user_input;
+    history << query;
     
-    answer(greeting);
+    return greeting;
 }

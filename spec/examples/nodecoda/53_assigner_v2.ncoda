@@ -20,5 +20,5 @@ function main(string query, string new_tag) {
     // Append to array (<<) - can reference node output
     tags << new_tag;
 
-    answer(username);
+    return username;
 }

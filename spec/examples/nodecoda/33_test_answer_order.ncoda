@@ -18,8 +18,8 @@ function main(string query) {
         "temperature": 0.7
     });
 
-    // First answer
-    answer("--- answer 1 ---\nfoo\n");
+    // First answer（中间消息 → output；终止答复 → return）
+    output("--- answer 1 ---\nfoo\n");
 
     // Second answer with LLM output
     return `--- answer 2 ---\n${response.text}\n`;

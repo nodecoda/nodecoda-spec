@@ -7,12 +7,12 @@
 @conversation string visitor = "anonymous";
 @conversation int visit_count = 0;
 
-function main(string name) {
+function main(string query) {
     // Literal assignment (set)
     visitor = "hello";
     
     // Compound assignment (+=)
     visit_count += 1;
     
-    answer(visitor);
+    return visitor;
 }
