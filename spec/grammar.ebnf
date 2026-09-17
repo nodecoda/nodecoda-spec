@@ -31,11 +31,15 @@
  *                  see the W1 ledger entry below)
  *              output(key, value) key form (single-value output(expr))
  *              answer_decl (@answer) + the KEYWORD binding-name position and
- *                  the `word` production — 2026-09-16 (W1 ruling D4): `answer`
- *                  is a Dify-era construct; on the platform the useAnswerContent
- *                  exit endpoint IS an OutputEmitter (the same runtime object an
- *                  output node is), so `output` alone carries message
- *                  semantics. Ruling record (godcc):
+ *                  the `word` production — REMOVED 2026-09-16 (W1 ruling D4):
+ *                  `answer` is a Dify-era construct. On the platform the
+ *                  useAnswerContent exit endpoint IS an OutputEmitter at
+ *                  runtime (the same object an output node is), but that is a
+ *                  PLATFORM fact — not a licence to carry that endpoint with the
+ *                  output construct. The endpoint decides the flow's ANSWER
+ *                  VALUE and is carried by `return template ...` (W1 D6 / W2),
+ *                  while output(...) is the intermediate-message statement.
+ *                  Ruling record (godcc):
  *                  docs/five-step/spec/W1-output-return.md
  *   added    : import_decl (LANGUAGE-REFERENCE §1.3, godcc import)
  *              agent_application / agent_block (§1.5, godcc @agent)

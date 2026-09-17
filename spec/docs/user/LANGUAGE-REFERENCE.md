@@ -873,7 +873,7 @@ let city = extracted.value.city;
 | let 不可变 | `let` 绑定后不可重新赋值 |
 | output 上下文 | `output(expr)` 发布消息，非终止；**位置不参与语义**（可在任意块 / 分支臂，容器内合法；`parallel` 分支内与 workflow/advanced-chat main 之外 = 语言错）；`@mode agent` 下 main 仅允许 agent 入口语义（`run(...)`） |
 | return 出口命名（仅流程出口） | `main` 的带值 `return <e>;` = 一组具名输出：`e` 是 record 且字段承载口可枚举 ⇒ 逐字段具名（键 = 语言字段名）；否则 ⇒ 单输出，键 = 语言常量 `output`（`return x;` ≡ `return { $output: x };`）；键不由生产者物理端口名推断。作者可显式具名；普通函数的 `return <v>` 无出口表语义 |
-| answer 构造 | `answer(...)` 语句已移除（2026-08-23）、`@answer` 声明已移除（2026-09-16）；两者的消息语义并入 `output` |
+| answer 构造 | `answer(...)` 语句已移除（2026-08-23）、`@answer` 声明已移除（2026-09-16）；`answer` 是 Dify 时代的构造。答复端点的语言侧载体 = `return template …`（W1 D6 / W2），`output(expr)` 只承载中间消息（与流程出口值无绑定） |
 | import 平台限定 | `import` 必须带平台限定符（如 `"coze-biz.web_search"`）；裸 import 或未知平台 = E1052 |
 | chatflow 入口 | `@mode advanced-chat` 入口首参必须命名为 `query`（E1054） |
 | `??` 混用限制 | `??` 不得与 `||` / `&&` 在同一表达式内不套括号混用（语法错误） |

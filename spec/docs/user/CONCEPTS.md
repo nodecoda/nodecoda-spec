@@ -70,7 +70,7 @@ NodeCoda 源文件经过词法和语法分析、绑定与类型检查、目标�
 
 ## 程序与入口
 
-NodeCoda 程序由可选的 `@mode`、类型和枚举声明、常量、辅助函数以及唯一的 `main` 入口组成。`output` 发布消息（非终止），`return` 返回结构化结果。`answer(...)` 语句已移除（2026-08-23），`@answer` 声明已移除（2026-09-16）—— `answer` 是 Dify 时代的构造，在平台上「终止时的答复」本来就是一次 `output`（同一个发射器对象），因此消息语义只由 `output` 承载。
+NodeCoda 程序由可选的 `@mode`、类型和枚举声明、常量、辅助函数以及唯一的 `main` 入口组成。`output` 发布消息（非终止），`return` 返回结构化结果。`answer(...)` 语句已移除（2026-08-23），`@answer` 声明已移除（2026-09-16）—— `answer` 是 Dify 时代的构造。平台侧「终止时的答复」是 exit 端点的 `terminatePlan: useAnswerContent` 取值；运行期它是一个 `OutputEmitter`（与 `output` 节点同一个对象），但**那是平台事实，不是语言里用 `output` 承载该端点的理由** —— 答复端点的语言侧载体 = `return template …`（W1 D6 / W2），`output(expr)` 只承载中间消息。
 
 ## 值、操作和控制流
 

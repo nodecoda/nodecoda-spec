@@ -300,7 +300,9 @@ output(`已生成：${final_value}`);
 ```
 
 `output` 发布消息（非终止）；`return` 返回结构化结果。`answer(...)` 语句已移除（2026-08-23），
-`@answer` 声明已移除（2026-09-16）：`answer` 语义在平台侧就是一次输出发射，由 `output` 承载。
+`@answer` 声明已移除（2026-09-16）：`answer` 是 Dify 时代的构造。平台侧「终止时的答复」由 exit 端点的
+`terminatePlan: useAnswerContent` 承载，语言侧载体 = `return template …`（W1 D6 / W2）；
+`output(expr)` 只承载中间消息，与流程出口值没有绑定关系。
 
 ---
 
