@@ -6,9 +6,10 @@
 // Pattern: File upload handling
 //
 // Syntax: file<types; ext; upload>
-// - types: document, image, audio, video, txt, ppt, excel, zip, svg, voice, custom
-//   （2026-09-21 语言级扩展 B「与平台名册同构」：闭集由 5 扩到 11；平台族 `code`
-//    仍不可写 —— 它是关键字，`file<code>` 是语法错误）
+// - types: document, image, audio, video, txt, ppt, excel, zip, svg, voice, code, custom
+//   （2026-09-21 语言级扩展 B「与平台名册同构」+ A「`code` 补入」：闭集由 5 扩到 12，
+//    平台 12 族全部可写。`code` 是关键字 ⇒ 唯一合法拼写是 `file<$code>`
+//    —— `$` 属纯词法转义，裸 `file<code>` 是语法错误）
 // - ext: .pdf, .docx, etc (dot is optional)
 // - upload: local_file, remote_url
 
@@ -16,4 +17,8 @@
 
 function main(file<document, image; .pdf, .docx; local_file, remote_url> doc) {
     return doc;
+}
+
+function code_file(file<$code> script) -> file<$code> {
+    return script;
 }

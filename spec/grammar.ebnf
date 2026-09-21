@@ -195,7 +195,13 @@ file_type_ref = "file" [ "<"
                          [ ";" file_extension_list ]
                          [ ";" file_upload_list ]
                        ">" ] ;
-file_type_list    = IDENTIFIER { "," IDENTIFIER } ;
+file_type_list    = name { "," name } ;
+                     (* `file<…>` 的族标签：**闭集词汇表**（枚举成员，不是待解析的名字）
+                        + `$` 转义。转义不是可选项而是必需 —— 关键字族（`code`）在源码里
+                        唯一合法拼写是 `$code`（2026-09-21 用户拍板 A：闭集与平台名册
+                        同构，共 12 个 token）。裸 `file<code>` 是语法错误（KW_CODE）。
+                        该位置不参与名字解析（0 绑定点、0 作用域）：词法上是标识符，
+                        语义上是枚举标签 —— 合法性由闭集判定，不由语法判定。 *)
 file_extension_list = "." IDENTIFIER { "," "." IDENTIFIER } ;
 file_upload_list  = IDENTIFIER { "," IDENTIFIER } ;
 
