@@ -316,6 +316,17 @@ let empty = [];
 let config = { "key": "value", "count": 42 };
 ```
 
+**键位规则（静态名）**：映射字面量的键只接受两种写法，二者等价 ——
+
+| 键写法 | 键名 |
+|--------|------|
+| 标识符（`{ a: 1 }`） | `a` —— **标签**本身：名字位规则（§1.6）在键位同样适用，键**不参与引用绑定**、**不做常量折叠**（作用域里有没有同名变量或 `const` 都不改变键名） |
+| 字符串字面量（`{ "a": 1 }`） | `a` —— 字面量值 |
+
+其他表达式形态 = **动态键**：键位不参与引用绑定（`{ q + "x": 1 }` 里的 `q` 解析不到），而平台参数名 / 分类标签是**静态名** ⇒ 编译期**拒绝**（实现诊断：`map key … is not a static name (use an identifier or a string literal)`）。
+
+同一规则适用于一切静态名键位：`llm(model, { … })` 的 config、`switch (x, { 类别: … })` 的标签表、`ask<T,P>({ … })`、`parse(x, { 字段: … }) as v`，以及 `return template "…" using { 名额: path }` 的**名额名**。
+
 ### 4.6 三元表达式
 
 ```ncoda
@@ -1060,7 +1071,7 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.lambda.expression --> `syntax.lambda.expression` | `lambda_expr` | Grammar production lambda_expr |
 | <!-- DOCFORG:FACT id=syntax.language.declaration.optional --> `syntax.language.declaration.optional` | `language_decl_opt` | Grammar production language_decl_opt |
 | <!-- DOCFORG:FACT id=syntax.map.entry --> `syntax.map.entry` | `map_entry` | Grammar production map_entry |
-| <!-- DOCFORG:FACT id=syntax.map.key --> `syntax.map.key` | `map_key` | Grammar production map_key |
+| <!-- DOCFORG:FACT id=syntax.map.key --> `syntax.map.key` | `map_key` | Grammar production map_key（静态名：标识符 = 标签 / 字符串字面量；其他形态 = 动态键 ⇒ 拒绝 —— 见 §4.5）|
 | <!-- DOCFORG:FACT id=syntax.map.literal --> `syntax.map.literal` | `map_literal` | Grammar production map_literal |
 | <!-- DOCFORG:FACT id=syntax.mode.declaration.optional --> `syntax.mode.declaration.optional` | `mode_decl_opt` | Grammar production mode_decl_opt |
 | <!-- DOCFORG:FACT id=syntax.multiply.expression --> `syntax.multiply.expression` | `multiply_expr` | Grammar production multiply_expr |
