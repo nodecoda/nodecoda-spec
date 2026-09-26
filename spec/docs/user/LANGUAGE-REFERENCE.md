@@ -218,6 +218,41 @@ var counter = 0;            // 可变（受限）
 const MAX_SIZE = 100;       // 编译期常量
 ```
 
+#### 带类型声明 `T v [= expr];`
+
+类型也可以写在前面（不写 `let` / `var` / `const` 关键字）：
+
+```ncoda
+string title = "Alice";     // 带类型 + 初值，可变
+string scratch;             // 带类型、无初值：先声明，后赋值
+scratch = "";
+```
+
+| 形式 | 语义 |
+|------|------|
+| `T v = expr;` | 声明 + 初始化；等价于 `T v; v = expr;` |
+| `T v;` | 声明，**未初始化**（不是零值）：所有可达路径上都必须先赋值、再读，否则报 `E1048`（`UNINITIALIZED_USE`，见 DIAGNOSTICS） |
+
+用途 = 「先在外层声明、再在分支里赋值」：
+
+```ncoda
+function main(int score) -> string {
+    string picked;
+    if (score > 80) {
+        picked = "优秀";
+    } else {
+        picked = "一般";
+    }
+    return picked;
+}
+```
+
+三点注意：
+
+- 带类型声明是**可变**的：`title = "Bob";` 合法（`let` 声明则不可重新赋值）。
+- 类型声明不与关键字连用：`let string v = …` / `var int n;` 是语法错误（`SYNTAX_ERROR`）；`var` 关键字声明**不带类型**。
+- `if` 无 `else` 时臂内赋值不满足「确定赋值」——分支之后读该名字仍是 `E1048`；此类「可能不执行」的汇聚请写显式初值（`T v = <初值>;`）。类型省略的 `var v;` 不受 `E1048` 约束，那是反编译器为「可能不赋值」的汇聚生成的降级形态。
+
 ### 3.2 赋值运算符
 
 ```ncoda
@@ -1056,7 +1091,7 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.type.atom --> `syntax.type.atom` | `type_atom` | Grammar production type_atom |
 | <!-- DOCFORG:FACT id=syntax.type.declaration --> `syntax.type.declaration` | `type_decl` | Grammar production type_decl |
 | <!-- DOCFORG:FACT id=syntax.type.ref --> `syntax.type.ref` | `type_ref` | Grammar production type_ref |
-| <!-- DOCFORG:FACT id=syntax.typed.var.declaration --> `syntax.typed.var.declaration` | `typed_var_decl` | Grammar production typed_var_decl |
+| <!-- DOCFORG:FACT id=syntax.typed.var.declaration --> `syntax.typed.var.declaration` | `typed_var_decl` | Grammar production typed_var_decl（带类型声明 `T v [= expr];`；无初值形式 `T v;` 须在所有可达路径上先赋值、再读，否则 `E1048` —— 见 §3.1）|
 | <!-- DOCFORG:FACT id=syntax.unary.expression --> `syntax.unary.expression` | `unary_expr` | Grammar production unary_expr |
 | <!-- DOCFORG:FACT id=syntax.var.declaration --> `syntax.var.declaration` | `var_decl` | Grammar production var_decl |
 | <!-- DOCFORG:FACT id=syntax.while.statement --> `syntax.while.statement` | `while_stmt` | Grammar production while_stmt |
