@@ -558,6 +558,10 @@ function main(string url) {
   - **名额值 = 值路径** `IDENT(.IDENT)*`（目标名额只承载一个生产者端口引用）；其余表达式形态是 `E1060`；
   - `using` 可省（没有名额的模板）；**`template` 标记不可省** —— 它是与「值出口」的判别标记
     （`return template "x";` 与 `return "x";` 是两条不同的出口通道）；
+  - **流式投递开关**：`return template "<逐字模板>" [using {…}] streaming;` —— 该答复以
+    **流式**投递（目标平台的投递开关，coze-biz = `streamingOutput: true`）；不加 = 平台默认
+    （coze-biz 写 `false`）。`streaming` 是**上下文词**（不是保留字），只在 `return template …`
+    与 `output(...)`（§5.7）两个位置被识别；**值出口 `return <e>;` / void `return;` 没有这个开关**。
   - **位置**：只在流程出口位置合法（顶层，或 `if` / `switch` / `parallel` 臂内）；循环体内、
     子函数内、QA `action` / `attempt` 臂内 = `E1057`；
   - **不与 `return <值>` 共存**（`E1058`；void `return;` 可共存）；同一流程的多个模板返回必须
@@ -567,6 +571,8 @@ function main(string url) {
   // ① 纯文本答复（零名额）② 逐个名额（名额名 = 平台 wire 名，模板逐字承载）
   return template "结果输出到了填入的多维表格中，表格左侧会增加一个数据表，点进去查看";
   return template "![]({{image[0]}})" using { output: v1.body, image: v2.images };
+  // 流式投递（平台 streamingOutput: true；不写 = 平台默认 false）
+  return template "正在生成… {{n}}/{{total}}" using { n: v1.done, total: v1.all } streaming;
   ```
 
 - **流程出口节点由 `return` 决定**：`return { … }` ⇒ 出口携带具名结果；`return;`
@@ -594,6 +600,9 @@ return { $output: report.body };
 - **`output` 与流程出口无关**：`output` 只对应平台的一次消息发射，**不决定出口节点**
   （出口由 `return` 决定，见 §5.6）。流程没有任何 `return`、或只有 `output` 时，
   目标平台仍需要一个出口节点 —— 那是出口规则的产物，与 `output` 语句无关。
+- **流式投递开关**：`output(expr) streaming;` —— 该消息以**流式**投递（目标平台
+  `streamingOutput: true`）；不加 = 平台默认（coze-biz 写 `false`）。`streaming` 是上下文词
+  （不是保留字），只在 `output(...)` 与 `return template …`（§5.6）两个位置被识别。
 - **模板**：操作数是 `TEMPLATE_STRING` 时即为消息模板，插值位（`${...}`）在目标平台上
   落成该发射节点的**命名绑定**（绑定名由目标平台的物理端口决定，见 §1.6 的名字转义）。
 - **与终止答复端点的关系（钉子，2026-09-17 用户拍板 · W1 D6）**：coze-biz 的终止答复端点
@@ -1078,7 +1087,7 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.operation.policies --> `syntax.operation.policies` | `operation_policies` | Grammar production operation_policies |
 | <!-- DOCFORG:FACT id=syntax.operation.policy --> `syntax.operation.policy` | `operation_policy` | Grammar production operation_policy |
 | <!-- DOCFORG:FACT id=syntax.or.expression --> `syntax.or.expression` | `or_expr` | Grammar production or_expr |
-| <!-- DOCFORG:FACT id=syntax.output.statement --> `syntax.output.statement` | `output_stmt` | 中间消息发布（单值 `output(expr)`，非终止；模型 docs/NCODA-OUTPUT-MODEL.md） |
+| <!-- DOCFORG:FACT id=syntax.output.statement --> `syntax.output.statement` | `output_stmt` | 中间消息发布（单值 `output(expr) [streaming]`，非终止；`streaming` = 投递开关，见 §5.7；模型 docs/NCODA-OUTPUT-MODEL.md） |
 | <!-- DOCFORG:FACT id=syntax.parallel.for.expression --> `syntax.parallel.for.expression` | `parallel_for_expr` | Grammar production parallel_for_expr |
 | <!-- DOCFORG:FACT id=syntax.parallel.for.statement --> `syntax.parallel.for.statement` | `parallel_for_stmt` | 语句形态副作用并发循环（体为普通 block，无 yield） |
 | <!-- DOCFORG:FACT id=syntax.parallel.statement --> `syntax.parallel.statement` | `parallel_stmt` | Grammar production parallel_stmt |
@@ -1126,7 +1135,7 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=syntax.agent.entry --> `syntax.agent.entry` | `agent_entry` | @agent 配置条目 |
 | <!-- DOCFORG:FACT id=syntax.name --> `syntax.name` | `name` | 名字位（作者名）：`IDENTIFIER` 或 `$` 转义标识符 —— 每个名字位一条规则（W1 D1） |
 | <!-- DOCFORG:FACT id=syntax.member.name --> `syntax.member.name` | `member_name` | 目标平台拥有的名字位（`.` 后成员 / `yield` 口名 / `template` 名额名）：`name` 或保留字 |
-| <!-- DOCFORG:FACT id=syntax.template.return --> `syntax.template.return` | `template_return` | 流程答复端点（`terminatePlan: useAnswerContent`）：逐字模板 + 有序名额表（W2） |
+| <!-- DOCFORG:FACT id=syntax.template.return --> `syntax.template.return` | `template_return` | 流程答复端点（`terminatePlan: useAnswerContent`）：逐字模板 + 有序名额表（W2）+ 可选 `streaming` 投递开关（§5.6） |
 | <!-- DOCFORG:FACT id=syntax.template.binding.list --> `syntax.template.binding.list` | `template_binding_list` | 模板返回的有序名额表（源序 = 平台 `node_inputs` 序，不去重不筛选） |
 | <!-- DOCFORG:FACT id=syntax.template.binding --> `syntax.template.binding` | `template_binding` | 名额表条目：名额名（平台 wire 名，允许保留字）到值路径 |
 | <!-- DOCFORG:FACT id=syntax.value.path --> `syntax.value.path` | `value_path` | 值路径（一个生产者端口引用；名额值必须是它） |

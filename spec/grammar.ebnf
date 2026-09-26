@@ -70,6 +70,11 @@
  *                  `member_name = name | KEYWORD` applies only where the
  *                  OUTSIDE world owns the name (postfix `.` member, `yield`
  *                  port). ESCAPED_IDENTIFIER also becomes a primary_expr.
+ *   added    : `streaming` delivery flag (2026-09-27, user ruling) — a
+ *                  CONTEXTUAL word on the two delivery statements only:
+ *                  `output(<expr>) [streaming];` /
+ *                  `return template "<verbatim>" [using { … }] [streaming];`
+ *                  (target `streamingOutput: true`; absent >= platform default)
  *   added    : template_return / template_binding_list / template_binding /
  *                  value_path (2026-09-17, W2, user ruling) — the flow's
  *                  ANSWER endpoint construct: `return template "<verbatim>"
@@ -227,7 +232,17 @@ return_stmt = "return" [ expression ] ";" ;
               (* the other return shape is template_return below. *)
 
 template_return = "return" "template" STRING_LITERAL
-                  [ "using" template_binding_list ] ";" ;
+                  [ "using" template_binding_list ] [ "streaming" ] ";" ;
+              (* `streaming` (added 2026-09-27, user ruling): the delivery flag on
+                 BOTH statement sites — `output(...) [streaming];` and
+                 `return template "…" [using {…}] [streaming];` — meaning
+                 "deliver this message/answer as a stream" (coze-biz
+                 `streamingOutput: true`). Absent = the platform default
+                 (coze-biz writes `false`). Like `template` / `using` /
+                 `timeout`, `streaming` is a CONTEXTUAL word: it is recognised
+                 only in those two positions, so an identifier named
+                 `streaming` keeps working everywhere else. The value exit
+                 (`return <e>;`) and void `return;` carry NO such flag. *)
               (* flow ANSWER endpoint (target `terminatePlan:
                  useAnswerContent`). The template operand is a STRING_LITERAL
                  and is carried VERBATIM: the compiler does not read it
@@ -291,7 +306,7 @@ continue_stmt = "continue" ";" ;
 typed_var_decl = type_ref name [ "=" expression ] ";" ;
 var_decl       = ( "var" | "let" ) name [ "=" expression ] ";" ;
 
-output_stmt = "output" "(" expression ")" ";" ;  (* intermediate message *)
+output_stmt = "output" "(" expression ")" [ "streaming" ] ";" ;  (* intermediate message *)
               (* emitted to the response stream; non-terminating *)
               (* model: docs/NCODA-OUTPUT-MODEL.md *)
 
