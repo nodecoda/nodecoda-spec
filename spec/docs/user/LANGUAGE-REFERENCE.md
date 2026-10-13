@@ -357,18 +357,19 @@ let nested = data["key"].field;
 | 10 | `?:` (三元) |
 | 11 | `=` `+=` `-=` `*=` `/=` `<<` |
 
-### 4.9 显式转换 `int(...)` 与 `file(...)`
+### 4.9 显式转换 `int(...)` / `float(...)` / `file(...)`
 
-语言只有两个转换的拼写是**类型关键字**（其余类型关键字只能出现在类型位置）：
+语言只有三个转换的拼写是**类型关键字**（其余类型关键字只能出现在类型位置）：
 
 ```ncoda
 let n = int("42");        // string / float / int → int
+let f = float("2.5");     // string / int / float → float
 let upload = file(url);   // string → file 标注（编译期零开销，只做类型标注）
 ```
 
 - 类型关键字仅当**紧跟 `(`** 时读作函数名（类型位置不经过表达式主部，故无歧义）；
-- 除这两个以外没有别的关键字转换：`float(s)` / `bool(s)` = 语法错误；
-- `int` → `float` 是**隐式**提升，不需要转换；
+- 除这三个以外没有别的关键字转换：`string(s)` / `bool(s)` = 语法错误；
+- `int` → `float` 也可用**隐式**提升（无需转换）；`float(...)` 是它的显式形式；
 - 语法产生式见 `cast_expr`。
 
 ### 4.10 空值合并 `??`
@@ -962,7 +963,7 @@ let city = extracted.value.city;
 | `??` 混用限制 | `??` 不得与 `||` / `&&` 在同一表达式内不套括号混用（语法错误） |
 | `??` 冗余 | `x ?? y` 左操作数静态非可空 ⇒ 右操作数永不被取用（W2012） |
 | 跨类型相等 | `==` / `!=` 类型不同 = 警告（W2011），不阻断编译；顺序比较保持严格类型错误 |
-| 转换拼写 | 只有 `int(...)` / `file(...)` 用类型关键字作转换名（`cast_expr`），其余类型关键字不得作函数名 |
+| 转换拼写 | 只有 `int(...)` / `float(...)` / `file(...)` 用类型关键字作转换名（`cast_expr`），其余类型关键字不得作函数名 |
 | 名字转义 | 与保留字 / 类型名冲突的名字用 `$` 转义书写（词法层规则，全位置一致）；`file<…>` 族标签位同理（关键字族只能写 `file<$code>`） |
 | 能力约束 | 合法语法仍受目标能力分类约束（REJECTED 形式返回诊断） |
 
@@ -1130,7 +1131,7 @@ let city = extracted.value.city;
 | <!-- DOCFORG:FACT id=type.optional --> `type.optional` | `optional` | NodeCoda type category OPTIONAL |
 | <!-- DOCFORG:FACT id=type.record --> `type.record` | `record` | NodeCoda type category RECORD |
 | <!-- DOCFORG:FACT id=type.string --> `type.string` | `string` | NodeCoda type category STRING |
-| <!-- DOCFORG:FACT id=syntax.cast.expression --> `syntax.cast.expression` | `cast_expr` | 类型关键字转换 `int(...)` / `file(...)` |
+| <!-- DOCFORG:FACT id=syntax.cast.expression --> `syntax.cast.expression` | `cast_expr` | 类型关键字转换 `int(...)` / `float(...)` / `file(...)` |
 | <!-- DOCFORG:FACT id=syntax.coalesce.expression --> `syntax.coalesce.expression` | `coalesce_expr` | `??` 空值合并（first-not-null） |
 | <!-- DOCFORG:FACT id=syntax.agent.entry --> `syntax.agent.entry` | `agent_entry` | @agent 配置条目 |
 | <!-- DOCFORG:FACT id=syntax.name --> `syntax.name` | `name` | 名字位（作者名）：`IDENTIFIER` 或 `$` 转义标识符 —— 每个名字位一条规则（W1 D1） |

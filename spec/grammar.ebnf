@@ -52,8 +52,8 @@
  *                  parallel loop; the iteration-scope contract lives in
  *                  LANGUAGE-REFERENCE §5.4)
  *   added    : ?? null-coalescing operator (coalesce_expr), 2026-09-16 — was
- *                  implementation-only (godcc); `int(...)` / `file(...)`
- *                  contextual conversions (cast_expr) and the `$` identifier
+ *                  implementation-only (godcc); `int(...)` / `float(...)` /
+ *                  `file(...)` contextual conversions (cast_expr) and the `$` identifier
  *                  escape (ESCAPED_IDENTIFIER) land in the same change set:
  *                  all three were carried by the implementation as undeclared
  *                  quirks (godcc G13) and by raising output before that;
@@ -353,11 +353,14 @@ primary_expr = INT_LITERAL | FLOAT_LITERAL | STRING_LITERAL | TEMPLATE_STRING
              | for_expr | parallel_for_expr
              | foreign_code_expr | lambda_expr ;
 
-cast_expr = "int" "(" expression ")" | "file" "(" expression ")" ;
-              (* the only two builtin conversions spelled as a type keyword; the
+cast_expr = "int" "(" expression ")"
+          | "float" "(" expression ")"
+          | "file" "(" expression ")" ;
+              (* the only three builtin conversions spelled as a type keyword; the
                  keyword reads as a callee only immediately before "(" (type
                  positions never reach primary_expr, so no ambiguity).
                  `int` = numeric conversion (string/float/int → int);
+                 `float` = numeric conversion (string/int/float → float);
                  `file` = string → file annotation. No other type keyword may
                  be used as a callee. *)
 
@@ -500,9 +503,9 @@ semicolon_opt      = [ ";" ] ;
  * - == / != between different types are accepted with warning W2011 (real
  *   platform workflows compare bool with string and stay runnable); the
  *   ordering comparisons < <= > >= stay strict type errors.
- * - int(...) and file(...) are the only conversions spelled as a type keyword
- *   (cast_expr); every other type keyword is a plain type. int → float is an
- *   implicit widening and needs no conversion.
+ * - int(...), float(...) and file(...) are the only conversions spelled as a
+ *   type keyword (cast_expr); every other type keyword is a plain type.
+ *   int → float is an implicit widening (float(...) is the explicit form).
  * - A name colliding with a reserved word or a type name is written with the
  *   `$` escape (ESCAPED_IDENTIFIER), e.g. `function main(file $file)`.
  * - Only explicit parallel and parallel-for introduce operation concurrency.
