@@ -22,12 +22,12 @@
 | 40_code_typed_structural_output | Code structural result | ✓ | ✓ | 多物理输出端口 |
 | 45_iteration_yield | value For + yield | ✓ | ✓ | 三次 runtime 运行输出 `[2,4,6]` |
 | 46_loop_escape | For break/continue/return | ✓ | 关闭 | API 输出正确但 Console 证据不干净，返回 E1034 |
-| 47_parallel_product | named parallel product | ✓ | ✓ | 五次 runtime 运行稳定 |
-| 48_response_accumulation | 多 End response | ✓ | ✓ | 三次 runtime 运行通过 |
+| 47_parallel_product | named parallel product | ✗ | — | 与冻结 `grammar.ebnf` 不一致：`let x = parallel {…}` 值形被禁（`:418`）⇒ 待改写 |
+| 48_response_accumulation | 多 End response | ✗ | — | 与冻结 `grammar.ebnf` 不一致：`output("名", 值)` 双参键形已移除（`:32`）⇒ 待改写 |
 | 49_for_statement_plain | plain statement For | ✓ | ✓ | 三次 runtime 运行，每项执行一次 body |
 | 50_condition_direct | direct condition | ✓ | ✓ | Dify 原生 condition operator |
 | 51_condition_calculation | calculated condition | ✓ | ✓ | typed Code materialization 后判断 |
-| 57_parameter_extractor | schema-dependent extraction | ✓ | ✓ | flat required prompt shape；必须检查 `.ok` |
+| 57_parameter_extractor | schema-dependent extraction | ✗ | — | 与冻结 `grammar.ebnf` 不一致：`output("名", 值)` 双参键形已移除（`:32`）⇒ 待改写 |
 | 62_llm_open_object | LLMResponse 信封 + llm&lt;T&gt; + object 降级 | ✓ | ✓ | record 不展开顶层字段；空结构降级为开放对象 |
 | 63_switch_classifier | switch 多出口 LLM 分类 | ✓ | ✓ | case 标签顺序 = branch_0..N；default 可选；结果绑定 `-> r` 访问 classificationId/reason |
 | 64_subflow_decl | subflow 子工作流声明 + 调用 | ✓ | ✓ | 身份 = (workflowId, version)；dify 不支持（编译期诊断） |
@@ -35,6 +35,13 @@
 > **待改写（登记，未完成）**：`06_tool_use.ncoda`、`38_chatflow_time_tool.ncoda` 仍用已移除的 `tool(...)` 形态
 > ⇒ 需改写成 `import "<platform>.<provider>"` + `provider.operation(...)`；改写依赖该平台的 provider 绑定表，
 > 本平台（dify）当前无对应 provider 注册条目，故本轮只登记不改写。
+>
+> **待改写（登记，未完成）· 与本仓冻结 `grammar.ebnf` 不一致的示例**：以下五例用了冻结文法**不接受**的
+> 拼写，故「编译状态」表在改写前**不声称它们语法/语义通过**（`47`/`48`/`57` 见上表；`14`/`56` 未列于表）：
+> - `14_conditional_parallel_code.ncoda`：`function main(int switch)` 拿**保留字** `switch` 作形参名（`grammar.ebnf:97`）；
+> - `47_parallel_product.ncoda`：`let x = parallel {…}` 值形（`grammar.ebnf:418` 明禁：`never … yields a collection value`）；
+> - `48_response_accumulation.ncoda` / `56_list_operator.ncoda` / `57_parameter_extractor.ncoda`：`output(key, value)`
+>   双参键形（`grammar.ebnf:32` reconciliation ledger：该形已移除，只剩单参 `output(expr)`，见 `grammar.ebnf:309`）。
 
 **已实现语义功能**：
 1. ✓ Start 输入映射为 `function main(...)` 的强类型参数

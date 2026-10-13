@@ -34,6 +34,7 @@ function main(string query) -> string {
 | [标准库](STDLIB-REFERENCE.md) | `std.v1` 命名空间下的内置函数 |
 | [诊断码](DIAGNOSTICS.md) | Build 错误码（E）和警告码（W）完整目录 |
 | [目标兼容性](TARGET-COMPATIBILITY.md) | Dify/Graphon 能力状态和运行时证据 |
+| [目标兼容性（coze-biz）](TARGET-COMPATIBILITY-COZE-BIZ.md) | coze-biz 节点对应、平台形状契约与已知限制 |
 | [不支持的目标语义](UNSUPPORTED-SEMANTICS.md) | 当前目标明确拒绝的合法语言形状 |
 | [最佳实践](BEST-PRACTICES.md) | 常见模式、反模式、注意事项 |
 | [迁移指南](MIGRATION.md) | 版本身份、升级检查和预发布迁移规则 |

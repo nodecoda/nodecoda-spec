@@ -18,6 +18,7 @@ const DOCS = [
   'DIAGNOSTICS.md', 'GETTING-STARTED.md', 'LANGUAGE-REFERENCE.md', 'MIGRATION.md',
   'README.md', 'STDLIB-REFERENCE.md', 'TARGET-COMPATIBILITY.md',
   'TROUBLESHOOTING.md', 'UNSUPPORTED-SEMANTICS.md', 'WORKFLOW-PATTERNS.md',
+  'TARGET-COMPATIBILITY-COZE-BIZ.md',
 ]
 
 let failures = 0
@@ -36,7 +37,7 @@ check(typeof version.doc_hashes === 'object', 'doc_hashes present')
 console.log('[spec] doc_hashes match committed docs')
 const hashes = version.doc_hashes || {}
 const hashKeys = Object.keys(hashes).sort()
-check(hashKeys.length === 13, `doc_hashes has 13 docs (got ${hashKeys.length})`)
+check(hashKeys.length === 14, `doc_hashes has 14 docs (got ${hashKeys.length})`)
 for (const name of hashKeys) {
   const p = join(USER_DIR, name)
   if (!existsSync(p)) { failures += 1; console.error(`FAIL  doc missing: ${name}`); continue }
