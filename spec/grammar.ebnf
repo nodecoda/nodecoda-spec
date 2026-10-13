@@ -21,7 +21,10 @@
  *      "Static semantic restrictions" below and are part of the contract.
  *
  * Reconciliation ledger (vs retired dify-dsl.y):
- *   removed  : dead reserved tokens entry / stream / |> (A1 cleanup, godcc)
+ *   removed  : dead reserved tokens entry / stream / |> (A1 cleanup, godcc);
+ *              bare `|` dropped from the Symbols table (2026-10-13) — completes the
+ *              same A1 cleanup: the implementation (godcc) has no bitwise operators and
+ *              rejects `|` as a lexical error; `||` logical-or is unaffected (godcc G5).
  *              parallel_expr (value form removed; see LANGUAGE-REFERENCE §5.4)
  *              agent(...) operation-call form (superseded by @agent decl)
  *              datasource(...) reserved operation (target-specific)
@@ -121,7 +124,7 @@
  *                       platform, not by the author.
  *
  * Symbols:
- *   ( ) { } [ ] , : ; ? ?? . -> | = == != < <= > >= && || ! + - * / %
+ *   ( ) { } [ ] , : ; ? ?? . -> = == != < <= > >= && || ! + - * / %
  *   += -= *= /= <<
  *
  * Comments: // line comments; /* *\/ nested block comments.
