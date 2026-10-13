@@ -81,6 +81,8 @@ Workflow Build 使用结构化诊断码报告错误和警告。诊断码是稳�
 | <a id="e1058"></a> <!-- DOCFORG:FACT id=diagnostic.E1058 --> `E1058` | TEMPLATE_RETURN_MIXED | - |
 | <a id="e1059"></a> <!-- DOCFORG:FACT id=diagnostic.E1059 --> `E1059` | TEMPLATE_RETURN_IDENTITY | - |
 | <a id="e1060"></a> <!-- DOCFORG:FACT id=diagnostic.E1060 --> `E1060` | TEMPLATE_BINDING_INVALID | - |
+| <a id="e1061"></a> <!-- DOCFORG:FACT id=diagnostic.E1061 --> `E1061` | CAPABILITY_OUTPUTS_UNDECLARED | - |
+| <a id="e1062"></a> <!-- DOCFORG:FACT id=diagnostic.E1062 --> `E1062` | TEMPLATE_VALUE_PLACEMENT | - |
 | <a id="e1099"></a> <!-- DOCFORG:FACT id=diagnostic.E1099 --> `E1099` | LOWERING_INVARIANT | - |
 
 新增码语义：
@@ -97,8 +99,11 @@ Workflow Build 使用结构化诊断码报告错误和警告。诊断码是稳�
 - `E1058`（语言错）：同一流程里 `return template`（答复模板）与 `return <值>`（具名变量出口）**共存**——目标平台的流程出口通道二选一（`terminatePlan`），两者混用没有可承载的产物形状；void `return;` 可与模板返回共存。示例：`if (ok) { return template "…"; } else { return v; }`；
 - `E1059`（语言错）：同一流程的多个 `return template` **身份不一致**（模板文本或有序名额表不同）——目标只有一个答复端点、值侧只有一个身份，两个不同身份无法同时承载。示例：`if (a) { return template "A"; } else { return template "B"; }`（把两处改成逐字一致即可）；
 - `E1060`（语言错）：`return template … using { 名额: 值 }` 的**名额值不是值路径**（`IDENT(.IDENT)*`）——目标名额只承载 `input.value: {path, ref_node}`（一个生产者端口），调用 / 拼接 / 字面量 / 下标都没有可映射的形状。示例：`return template "…" using { output: f(x) };`；
+- `E1061`（契约错）：被调用的能力 op **没有输出表这一栏**（能力头文件 `function f(…) { … }` 缺 `-> T`）——输出表是**头文件的义务**（类比 C 函数声明缺返回类型 = 声明方的错），不是使用方的降级场景。修法 = 给该 op 补上返回类型（无输出写 `-> void`，那是合法形态、非本码）。示例：能力头写 `function search(string q) { … }` 后调用 `search("x")`；
+- `E1062`（语言错）：`template "…" [using {…}]` 落在**值通道**（`let` 初始化 / 数组元素 / `if` 条件 / 拼接操作数 / 调用实参）——该构造是**节点级**载体（逐字文本 + 具名名额表），只有三个承载位装得下它：`return template …` / `output(template …)` / llm message 的 `content: template …`；值通道只物化「一个值」，没有放名额表的位置。示例：`let x = template "你好 {{name}}" using { name: n };`；
 - `W2011`：`==` / `!=` 两侧类型不同（如 `bool == string`、record 与 string 不等）——**警告，不阻断编译**：真实平台工作流中该写法可运行且平台语义一致；顺序比较 `<` `<=` `>` `>=` 仍为严格类型错误；
 - `W2012`：`x ?? y` 的左操作数类型**静态非可空** ⇒ 右操作数永不被取用，结果为左值（右侧不参与结果类型约束）。
+- `W2013`：目标平台承载不了某条**约束轴** ⇒ 编译期**软降级**（按平台默认值落地）——降级本身合法（不变成错误，否则会拒收合法的 ncoda 源码），但**不许静默**，故报一条警告报账；方向纪律 = **只许放宽、不许收紧**（多值不许取首）。
 
 ### 警告码
 
@@ -113,6 +118,7 @@ Workflow Build 使用结构化诊断码报告错误和警告。诊断码是稳�
 | <a id="w2010"></a> <!-- DOCFORG:FACT id=diagnostic.W2010 --> `W2010` | ANY_FIELD_ACCESS | - |
 | <a id="w2011"></a> <!-- DOCFORG:FACT id=diagnostic.W2011 --> `W2011` | CROSS_TYPE_EQUALITY | - |
 | <a id="w2012"></a> <!-- DOCFORG:FACT id=diagnostic.W2012 --> `W2012` | REDUNDANT_COALESCE | - |
+| <a id="w2013"></a> <!-- DOCFORG:FACT id=diagnostic.W2013 --> `W2013` | TARGET_CONTRACT_DEGRADED | - |
 <!-- DOCFORG:END section=diagnostics-table -->
 
 ## 使用建议
