@@ -8,6 +8,8 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { checkMatrix } from './gen-coze-biz-capability-matrix.mjs'
+
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const USER_DIR = join(ROOT, 'spec', 'docs', 'user')
 const EX_DSL = join(ROOT, 'spec', 'examples', 'nodecoda')
@@ -44,6 +46,12 @@ for (const name of hashKeys) {
   const actual = createHash('sha256').update(readFileSync(p)).digest('hex').slice(0, 16)
   check(actual === hashes[name], `sha256[:16](${name}) matches`)
 }
+
+console.log('[spec] coze-biz capability matrix')
+const matrix = checkMatrix()
+check(matrix.ok, matrix.ok
+  ? `coze-biz matrix in sync (${matrix.count} rows)`
+  : `coze-biz matrix: ${matrix.reason}`)
 
 console.log('[spec] examples')
 const dsl = readdirSync(EX_DSL).filter((f) => f.endsWith('.ncoda'))

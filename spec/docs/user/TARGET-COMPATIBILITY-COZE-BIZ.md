@@ -2,7 +2,7 @@
 
 <!-- DOCFORG:VERSION:BEGIN -->
 > **语言**: nodecoda/1 | **标准库 API**: v1 | **Build Target**: coze-biz-1.0
-> **文档版本**: 2026-10-13
+> **文档版本**: 2026-10-18
 > **内容来源**: 版本化语言事实与验证示例
 <!-- DOCFORG:VERSION:END -->
 
@@ -19,9 +19,99 @@ NodeCoda Workflow Language 是否合法、当前 **coze-biz** Build Target 能�
 
 ## 本次收录范围
 
-本页当前收录 **coze-biz 的节点类型对应、平台形状契约与已知限制**。`TARGET-COMPATIBILITY.md`
-那种逐 `capability.*` 事实的**完整能力矩阵尚未镜像到本页**（列为待补）⇒ 本页的
-`ENABLED`/`REJECTED` 只覆盖下面**点名**的形状，**不构成完整承诺**。
+本页收录 **coze-biz 的节点类型对应、平台形状契约、语言能力矩阵镜像与已知限制**。
+
+- **语言能力矩阵**（下节）由 `scripts/gen-coze-biz-capability-matrix.mjs` 从
+  `TARGET-COMPATIBILITY.md` **机器生成**：68 条 `nodecoda-sem-*` 语言事实逐条镜像
+  （语言面 Disposition + 诊断），`node scripts/check-spec.mjs` 在源页变化而镜像未重生成时失败
+  ⇒ 不手抄、不漏行。
+- **coze-biz 特有的 Build 判定**仍只对「已知限制与拒绝项」里**点名**的形状给出口径
+  （**形状级**，与 capability id 不是一一映射）；矩阵里未列出的行 = **未声明**，
+  不等于 ENABLED，不构成完整承诺。
+- Graphon 节点行（`capability.graphon-node-*`）属于 Dify 面，不在本页镜像；coze-biz 的
+  节点对应见下节。
+
+## 能力矩阵（语言事实镜像）
+
+> 本节是**枚举完整性**的保证：`TARGET-COMPATIBILITY.md` 里每一条 NodeCoda 语言能力事实
+> 都在这里出现一次（机器生成、防漂）。它回答「语言一共定义了哪些能力」；某条能力在
+> coze-biz 上能否 Build，仍以「已知限制与拒绝项」的形状级判定为准。
+
+<!-- GENERATED:coze-biz-capability-matrix BEGIN -->
+> 本块由 `scripts/gen-coze-biz-capability-matrix.mjs` 从 `TARGET-COMPATIBILITY.md` 生成（68 条 `nodecoda-sem-*` 语言事实）；**禁止手改**。
+> `node scripts/check-spec.mjs` 在源页变化而本块未重生成时失败。Graphon 节点行属于 Dify 面，不入本页。
+
+| 名称 | Disposition（照录源页） | 诊断 |
+|------|------------------------|------|
+| binding.assignment | REJECTED | - |
+| binding.let | EXPOSED | - |
+| binding.var-loop | EXPOSED | - |
+| classification.enum | EXPOSED | - |
+| condition.calculation | MATERIALIZED | - |
+| condition.direct | EXPOSED | - |
+| condition.effectful | REJECTED | [E1034](DIAGNOSTICS.md#e1034) |
+| control.attempt | EXPOSED | - |
+| control.block | EXPOSED | - |
+| control.break | EXPOSED | - |
+| control.continue | EXPOSED | - |
+| control.for-expression | EXPOSED | - |
+| control.for-statement | EXPOSED | - |
+| control.if | EXPOSED | - |
+| control.parallel | EXPOSED | - |
+| control.parallel-for | EXPOSED | - |
+| control.return | EXPOSED | - |
+| control.while | EXPOSED | - |
+| control.yield | EXPOSED | - |
+| declaration.code | MATERIALIZED | - |
+| declaration.function | EXPOSED | - |
+| declaration.output | EXPOSED | - |
+| declaration.type | EXPOSED | - |
+| expression.arithmetic | MATERIALIZED | - |
+| expression.array | EXPOSED | - |
+| expression.call | EXPOSED | - |
+| expression.comparison | MATERIALIZED | - |
+| expression.field-access | EXPOSED | - |
+| expression.index | EXPOSED | - |
+| expression.lambda | REJECTED | - |
+| expression.literal | EXPOSED | - |
+| expression.logical | MATERIALIZED | - |
+| expression.map | EXPOSED | - |
+| expression.record | EXPOSED | - |
+| expression.selector | EXPOSED | - |
+| expression.template | MATERIALIZED | - |
+| expression.ternary | MATERIALIZED | - |
+| for.expression.with_yield | EXPOSED | - |
+| for.statement.plain | EXPOSED | - |
+| for.statement.with_exit | EXPOSED | - |
+| function.code | MATERIALIZED | - |
+| function.foreign-code | MATERIALIZED | - |
+| function.recursion | REJECTED | - |
+| function.workflow | EXPOSED | - |
+| interaction.human-input | PENDING | - |
+| loop.function_return | EXPOSED | - |
+| operation.answer | EXPOSED | - |
+| operation.failure-policy | EXPOSED | - |
+| operation.http | EXPOSED | - |
+| operation.knowledge | EXPOSED | - |
+| operation.llm | EXPOSED | - |
+| operation.output | EXPOSED | - |
+| operation.stdlib | EXPOSED | - |
+| operation.tool | EXPOSED | - |
+| parallel.isolated | EXPOSED | - |
+| program.mode.advanced-chat | EXPOSED | - |
+| program.mode.agent | EXPOSED | - |
+| program.mode.workflow | EXPOSED | - |
+| response.accumulation | EXPOSED | - |
+| response.advanced-chat | EXPOSED | - |
+| response.workflow | EXPOSED | - |
+| state.assignment | EXPOSED | - |
+| type.any-boundary | REJECTED | - |
+| type.array | EXPOSED | - |
+| type.map | EXPOSED | - |
+| type.optional | MATERIALIZED | - |
+| type.primitive | EXPOSED | - |
+| type.record | EXPOSED | - |
+<!-- GENERATED:coze-biz-capability-matrix END -->
 
 ## 节点类型对应
 
@@ -75,5 +165,5 @@ coze-biz 的节点由 `type` 字符串标识；同一 NodeCoda 构造在不同 T
 | `assign_variable` 的递增 / 聚合赋值 | REJECTED | 平台赋值是纯 `set`（见上「平台形状契约」第 5 条） |
 | 多「默认候选」的 `merge` 组 | PENDING | 平台允许一组挂两个以上默认候选；NodeCoda 侧当前只能表达一个 ⇒ 反编译到该形状须失败关闭（fail loud），不得静默丢弃第二个默认值 |
 
-> 说明：上表随标准与参考实现演进；`TARGET-COMPATIBILITY.md` 的完整 `capability.*` 能力矩阵镜像到本页
-> 之前，本表**不是** coze-biz 面的完整拒绝项清单。
+> 说明：上表是**形状级**口径（随标准与参考实现演进），与上节的能力矩阵按不同维度组织；
+> 它不按 `capability.*` id 一一映射，也不因矩阵里出现某条能力就默认该形状可 Build。
