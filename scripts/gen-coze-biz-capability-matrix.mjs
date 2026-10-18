@@ -30,22 +30,38 @@ const SECTION_END = '<!-- DOCFORG:END section=capability-matrix -->'
 
 function fail(msg) { throw new Error(msg) }
 
+// 源页 capability 前缀的**闭集**。新增前缀 = 新 target 面 ⇒ 必须先在这里分类
+// （镜像 / 不镜像 + 理由），否则生成器判红 —— 不许静默跳过（枚举范围 < 现实）。
+const KNOWN_PREFIXES = new Map([
+  ['capability.nodecoda-sem-', 'mirror'],      // 语言面：镜像到 coze-biz 页
+  ['capability.graphon-node-', 'dify-only'],   // Graphon/Dify 节点面：不镜像（理由见文件头）
+])
+const MIRRORED_PREFIX = 'capability.nodecoda-sem-'
+
 export function parseSource() {
   const text = readFileSync(SRC, 'utf8')
   const b = text.indexOf(SECTION_BEGIN)
   const e = text.indexOf(SECTION_END)
   if (b < 0 || e < 0 || e < b) fail('源页缺少 capability-matrix 段标记')
   const body = text.slice(b, e)
-  const rows = []
+  const all = []
   const re = /^\|\s*<!--\s*DOCFORG:FACT id=(capability\.[a-z0-9.-]+)\s*-->\s*([^|]+?)\s*\|(.+)\|\s*$/gm
   for (const m of body.matchAll(re)) {
     const id = m[1].trim()
-    if (!id.startsWith('capability.nodecoda-sem-')) continue
+    const prefix = [...KNOWN_PREFIXES.keys()].find((p) => id.startsWith(p))
+    if (!prefix) {
+      fail(`未知 capability 前缀：${id} —— 先在生成器 KNOWN_PREFIXES 里声明它属于哪个 target 面（禁静默忽略）`)
+    }
     const name = m[2].trim()
     const cols = m[3].split('|').map((s) => s.trim())
     if (cols.length !== 6) fail(`${id}: 期望 7 列（名称 + 6），实得 ${cols.length + 1}`)
-    rows.push({ id, name, disposition: cols[0], diagnostic: cols[5] })
+    all.push({ id, name, prefix, disposition: cols[0], diagnostic: cols[5] })
   }
+  // 已知前缀两侧都必须有事实：段被挪走/表被删 ⇒ 红，而不是「0 行也算过」。
+  for (const prefix of KNOWN_PREFIXES.keys()) {
+    if (!all.some((r) => r.prefix === prefix)) fail(`源页缺少 ${prefix}* 事实（段被删/挪？分母 0 ≠ 通过）`)
+  }
+  const rows = all.filter((r) => r.prefix === MIRRORED_PREFIX)
   if (rows.length === 0) fail('源页 capability-matrix 段里没有 nodecoda-sem 事实（分母 0 ≠ 通过）')
   const seen = new Set()
   for (const r of rows) {
